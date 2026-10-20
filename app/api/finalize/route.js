@@ -1,10 +1,14 @@
-import { FINALIZE_TOOL, callTool, checkAccess, describeContext, errorResponse, json } from "@/lib/ai";
+import { FINALIZE_TOOL, callTool, describeContext, errorResponse, json as plainJson } from "@/lib/ai";
+import { finish, recordUsage, requireSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req) {
-  if (!checkAccess(req)) return json({ error: "Невалиден код за достъп.", needsCode: true }, 401);
+  const auth = await requireSession(req);
+  if (auth.response) return auth.response;
+  const session = auth.session;
+  const json = (data, status) => finish(plainJson(data, status), session);
 
   let body;
   try {
@@ -41,8 +45,9 @@ ${chosen}
 
   try {
     const result = await callTool({ content: [{ type: "text", text }], tool: FINALIZE_TOOL, maxTokens: 6000 });
+    await recordUsage(session, "finalize");
     return json(result);
   } catch (err) {
-    return errorResponse(err);
+    return finish(errorResponse(err), session);
   }
 }

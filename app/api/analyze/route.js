@@ -1,4 +1,5 @@
-import { ANALYZE_TOOL, callTool, checkAccess, describeContext, errorResponse, json } from "@/lib/ai";
+import { ANALYZE_TOOL, callTool, describeContext, errorResponse, json as plainJson } from "@/lib/ai";
+import { dbErrorResponse, finish, overLimit, recordUsage, requireSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -8,7 +9,18 @@ const MAX_BASE64 = 4_000_000; // keeps the request under Vercel's 4.5 MB body li
 const MAX_TEXT = 20_000;
 
 export async function POST(req) {
-  if (!checkAccess(req)) return json({ error: "Невалиден код за достъп.", needsCode: true }, 401);
+  const auth = await requireSession(req);
+  if (auth.response) return auth.response;
+  const session = auth.session;
+  const json = (data, status) => finish(plainJson(data, status), session);
+
+  try {
+    if (await overLimit(session)) {
+      return json({ error: `Училището достигна месечния лимит от ${session.monthlyLimit} анализа. Лимитът се подновява в началото на месеца.` }, 429);
+    }
+  } catch (err) {
+    return finish(dbErrorResponse(err), session);
+  }
 
   let body;
   try {
@@ -49,8 +61,9 @@ export async function POST(req) {
     if (result.readable === false) {
       return json({ error: "Не успяхме да разпознаем задача във файла. Опитайте с по-ясна снимка или поставете текста." }, 422);
     }
+    await recordUsage(session, "analyze");
     return json(result);
   } catch (err) {
-    return errorResponse(err);
+    return finish(errorResponse(err), session);
   }
 }

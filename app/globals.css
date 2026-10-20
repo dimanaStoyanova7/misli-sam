@@ -184,3 +184,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .print-area, .print-area * { visibility: visible; }
   .print-area { position: absolute; inset: 0; border: 0; box-shadow: none; padding: 0; background: #fff; }
 }
+
+/* Login + account bar */
+.login { max-width: 520px; margin: 0 auto 20px; }
+.login form { display: flex; flex-direction: column; gap: 16px; }
+.login .primary.big { margin-top: 4px; }
+.optional { font-weight: 500; color: var(--muted); }
+.account { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin: -10px 0 18px; padding: 8px 14px; background: #efe9dd; border-radius: 10px; }
+
+/* Admin */
+.admin table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin th, .admin td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.admin th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.admin code { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: #efe9dd; padding: 3px 8px; border-radius: 6px; letter-spacing: .05em; }
+.admin .row-off td { opacity: .5; }
+.admin .table-wrap { overflow-x: auto; }
+.admin .new-school { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; }
+.admin .small { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.badge.on { background: var(--good-soft); color: var(--good); }
+.badge.off { background: var(--warn-soft); color: var(--warn); }
+.notice { background: var(--good-soft); color: var(--good); padding: 12px 14px; border-radius: 10px; font-weight: 600; margin: 14px 0 0; }
+@media (max-width: 640px) { .admin .new-school { grid-template-columns: 1fr; } }

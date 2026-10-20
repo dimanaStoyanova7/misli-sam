@@ -1,80 +1,87 @@
 # Мисли сам ("Think for Yourself")
 
-A Bulgarian-language web app for teachers. A teacher uploads an assignment (PDF, photo, or pasted text), adds context (grade, subject, home/class, grading time), and gets:
+A Bulgarian-language web app for teachers. A teacher logs in once with their school's code, uploads an assignment (PDF, photo, or pasted text), adds context (grade, subject, home/class, grading time), and gets:
 
 1. An **AI-vulnerability score** (1–10) for the original assignment
 2. **3–6 suggestions**, each explaining what to change, **what problem it solves**, an example wording, its impact, and its extra-work cost
 3. **Accept/reject** for each suggestion, then one combined, rewritten assignment
 4. A **before → after score** and **export** to Word (.docx) or PDF (via print)
 
-Built with Next.js, deployed on Vercel, using the Anthropic API (Claude reads PDFs and photos directly, so there's no separate OCR step).
+Built with Next.js on Vercel, a Neon Postgres database, and the Anthropic API (Claude reads PDFs and photos directly, so there's no separate OCR step).
 
 ---
 
-## Deploy to Vercel (about 10 minutes, no coding)
+## How access works
 
-### 1. Put the code on GitHub
-1. Create a free account at [github.com](https://github.com) if you don't have one.
-2. Click **New repository** → name it `misli-sam` → **Private** → **Create repository**.
-3. On the empty repo page, click **uploading an existing file**.
-4. Unzip this project and drag **all the files and folders inside it** into the page (`app`, `lib`, `package.json`, etc.). Then click **Commit changes**.
-
-### 2. Connect Vercel
-1. Go to [vercel.com](https://vercel.com) → sign up **with your GitHub account**.
-2. Click **Add New → Project** → choose the `misli-sam` repo → **Import**.
-3. Before clicking Deploy, open **Environment Variables** and add:
-
-| Name | Value |
-|---|---|
-| `ANTHROPIC_API_KEY` | your key from [console.anthropic.com](https://console.anthropic.com) → API Keys |
-| `ACCESS_CODE` | any password you choose, e.g. `uchitel2026` (recommended while testing) |
-
-4. Click **Deploy**. After a minute you get a link like `misli-sam.vercel.app`.
-
-### 3. Test it
-Open the link, upload an assignment, and enter your access code when asked (the browser remembers it).
+- You create a **school** on the admin page (`/admin`). Each school gets its own **code**.
+- A teacher enters the code **once** (plus their name, optionally). They stay logged in on that device for **30 days**, and the 30 days renew while they keep using it.
+- From `/admin` you can set a **monthly limit** of analyses per school, **stop** a school's access (its teachers are logged out on their next action), give it a **new code** (logs everyone out, useful if a code leaks), or delete it.
+- The admin page also shows usage per school: analyses this month and in total, number of named teachers, and active sessions.
 
 ---
 
-## Settings
+## Setup on Vercel
 
-| Variable | Required | What it does |
+### Environment variables (Vercel → Settings → Environment Variables)
+
+| Name | Required | What it is |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key. Never put it in the code. |
-| `ACCESS_CODE` | No | If set, only people with the code can use the app, so strangers can't spend your tokens. Remove it when you're ready to go public. |
-| `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5-5`. Change it to use a different Claude model. |
+| `ANTHROPIC_API_KEY` | Yes | Your key from [console.anthropic.com](https://console.anthropic.com) → API Keys. Never put it in the code. |
+| `DATABASE_URL` | Yes | Added automatically when you connect Neon (below). |
+| `ADMIN_PASSWORD` | Yes | Password for the `/admin` page. Choose a strong one. |
+| `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5-5`. |
 
-After changing a variable in Vercel, go to **Deployments → ⋯ → Redeploy** for it to take effect.
+After changing a variable, redeploy: **Deployments → ⋯ on the latest → Redeploy**.
 
-**Spending limit:** in the Anthropic Console, set a monthly spend limit under Billing/Limits so a test can never cost more than you expect.
+### Database (Neon)
+1. Vercel project → **Storage** → **Create Database** → **Neon** → region **Frankfurt (eu-central-1)** → Free plan → **Create**.
+2. Connect it to the `misli-sam` project (all environments). This adds `DATABASE_URL`.
+3. Nothing else: the tables are created automatically the first time the app uses the database.
+
+The app runs its server functions in Frankfurt (`vercel.json`), next to the database and close to Bulgaria.
+
+### First use
+1. Open `https://<your-site>/admin`, enter `ADMIN_PASSWORD`, and create a school.
+2. Copy its code, open the main page, and log in with it.
+
+**Spending limit:** in the Anthropic Console, set a monthly spend limit so costs can never surprise you.
 
 ---
 
 ## Limits to know
 - PDFs up to about 3 MB (Vercel's upload limit). Phone photos are shrunk automatically in the browser.
 - Each analysis takes about 20–40 seconds.
-- No logins or saved history yet. Each visit starts fresh.
+- A login is per device and browser. A new device asks for the code once.
 
-## Run locally (optional, for developers)
+## Run locally (for developers)
 ```bash
 npm install
-cp .env.example .env.local   # then add your key
+cp .env.example .env.local
+# For a quick local test with no real database and no AI costs:
+#   DATABASE_URL=pglite:memory  MOCK_AI=1  ADMIN_PASSWORD=test
 npm run dev                  # http://localhost:3000
 ```
 
 ## Project structure
 ```
-app/page.js              the whole interface (3 steps)
-app/globals.css          design
-app/api/analyze/route.js reads the file + scores + suggestions
-app/api/finalize/route.js builds the final assignment from chosen suggestions
-lib/ai.js                prompts, output format, Anthropic call
-lib/client.js            image compression, Word export
+app/page.js                    the teacher app (login + 3 steps)
+app/admin/page.js              admin page: schools, codes, limits, usage
+app/globals.css                design
+app/api/login|logout|me        session login with an http-only cookie
+app/api/analyze/route.js       reads the file + scores + suggestions
+app/api/finalize/route.js      builds the final assignment from chosen suggestions
+app/api/admin/schools/route.js admin API (protected by ADMIN_PASSWORD)
+lib/ai.js                      prompts, output format, Anthropic call
+lib/auth.js                    sessions, codes, limits, usage
+lib/db.js                      database connection + automatic table setup
+lib/mock.js                    sample AI answers for MOCK_AI=1
+lib/client.js                  image compression, Word export
 ```
 
 To change how suggestions are written, edit the `SYSTEM` prompt in `lib/ai.js`.
 
 ## Next steps (planned)
+- Eval test set for the AI output
 - "What a student would get from ChatGPT" preview
 - Oral check questions
-- Logins, saved history, and a free monthly limit (this is where Railway or a database comes in)
+- Saved history per teacher

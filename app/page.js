@@ -84,6 +84,56 @@ function Steps({ step }) {
   );
 }
 
+function LoginCard({ initialError, onLogin, onLoggedIn }) {
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState(initialError || "");
+  const [sending, setSending] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Входът не успя.");
+      onLogin(data);
+      onLoggedIn();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="card login">
+      <h1>Добре дошли</h1>
+      <p className="lead">Въведете кода на вашето училище. Ще го въвеждате само веднъж – после ще останете влезли на това устройство.</p>
+      <form onSubmit={submit}>
+        <label>
+          Код на училището
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="напр. K7MQ4XPA" autoComplete="off" autoCapitalize="characters" required autoFocus />
+        </label>
+        <label>
+          Вашето име <span className="optional">(по избор)</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Мария Петрова" autoComplete="name" />
+        </label>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="primary big" type="submit" disabled={sending}>
+          {sending ? "Влизане…" : "Вход"}
+        </button>
+      </form>
+      <p className="privacy">Нямате код? Попитайте директора или администратора на училището.</p>
+    </section>
+  );
+}
+
 // ---------- Page ----------
 
 export default function Home() {
@@ -93,8 +143,7 @@ export default function Home() {
   const [preview, setPreview] = useState(null);
   const [text, setText] = useState("");
   const [ctx, setCtx] = useState({ grade: "", subject: "", setting: "home", grading: "mid" });
-  const [code, setCode] = useState("");
-  const [needsCode, setNeedsCode] = useState(false);
+  const [me, setMe] = useState(null); // null = checking, {loggedIn:false} or {loggedIn:true,...}
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState(null);
@@ -106,11 +155,24 @@ export default function Home() {
   const topRef = useRef(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("misli-sam-code");
-      if (saved) setCode(saved);
-    } catch {}
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => setMe(d.loggedIn ? d : { loggedIn: false, error: d.error }))
+      .catch(() => setMe({ loggedIn: false, error: "Няма връзка със сървъра." }));
   }, []);
+
+  function refreshUsage() {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => d.loggedIn && setMe(d))
+      .catch(() => {});
+  }
+
+  async function signOut() {
+    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    setMe({ loggedIn: false });
+    restart();
+  }
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -127,7 +189,7 @@ export default function Home() {
   async function post(url, payload) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-access-code": code },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     let data = {};
@@ -136,14 +198,11 @@ export default function Home() {
     } catch {
       throw new Error(res.status === 413 ? "Файлът е твърде голям." : "Сървърът не отговори правилно. Опитайте отново.");
     }
-    if (res.status === 401 && data.needsCode) {
-      setNeedsCode(true);
-      throw new Error(code ? "Кодът за достъп е грешен." : "Въведете кода за достъп.");
+    if (data.needsLogin) {
+      setMe({ loggedIn: false, error: data.error });
+      throw new Error(data.error);
     }
     if (!res.ok) throw new Error(data.error || "Нещо се обърка.");
-    try {
-      if (code) localStorage.setItem("misli-sam-code", code);
-    } catch {}
     return data;
   }
 
@@ -170,6 +229,7 @@ export default function Home() {
       setFinal(null);
       setShowOriginal(false);
       setStep("results");
+      refreshUsage();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -223,11 +283,26 @@ export default function Home() {
             <small>задачи, които карат учениците да мислят</small>
           </div>
         </div>
-        <Steps step={step} />
+        {me?.loggedIn && <Steps step={step} />}
       </header>
 
+      {me?.loggedIn && (
+        <div className="account">
+          <span>
+            {me.school}
+            {me.teacher ? ` · ${me.teacher}` : ""}
+            {me.limit != null && me.used != null ? ` · ${me.used} от ${me.limit} анализа този месец` : ""}
+          </span>
+          <button className="link" onClick={signOut}>Изход</button>
+        </div>
+      )}
+
       <main>
-        {busy ? (
+        {me === null ? (
+          <div className="loading"><div className="spinner" /></div>
+        ) : !me.loggedIn ? (
+          <LoginCard initialError={me.error} onLogin={(d) => setMe({ loggedIn: true, ...d })} onLoggedIn={refreshUsage} />
+        ) : busy ? (
           <Loading kind={busy} />
         ) : step === "input" ? (
           <section className="card">
@@ -322,13 +397,6 @@ export default function Home() {
                 </select>
               </label>
             </div>
-
-            {needsCode && (
-              <label className="code">
-                Код за достъп
-                <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="въведете кода" autoComplete="off" />
-              </label>
-            )}
 
             {error && <p className="error" role="alert">{error}</p>}
 
