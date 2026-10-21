@@ -1,0 +1,115 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+const dateFmt = new Intl.DateTimeFormat("bg-BG", { day: "numeric", month: "long", year: "numeric" });
+
+function tone(n) {
+  if (n >= 7) return "high";
+  if (n >= 4) return "mid";
+  return "low";
+}
+
+function ScorePill({ before, after }) {
+  if (before == null) return null;
+  return (
+    <span className="score-pill">
+      <span className={`s-${tone(before)}`}>{before}</span>
+      {after != null && (
+        <>
+          <span className="s-arrow">→</span>
+          <span className={`s-${tone(after)}`}>{after}</span>
+        </>
+      )}
+      <small>/10</small>
+    </span>
+  );
+}
+
+export default function History({ onOpen, onNew, onLoggedOut }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    fetch("/api/assignments")
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (d.needsLogin) return onLoggedOut(d.error);
+        if (!r.ok) throw new Error(d.error || "Списъкът не можа да бъде зареден.");
+        setItems(d.assignments);
+      })
+      .catch((e) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function remove(item) {
+    if (!window.confirm(`Изтриване на „${item.title}“? Това не може да се отмени.`)) return;
+    setError("");
+    try {
+      const r = await fetch(`/api/assignments/${item.id}`, { method: "DELETE" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Задачата не можа да бъде изтрита.");
+      setItems((list) => list.filter((x) => x.id !== item.id));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  const q = filter.trim().toLocaleLowerCase("bg");
+  const shown = (items || []).filter(
+    (it) => !q || [it.title, it.context?.subject, it.context?.grade].filter(Boolean).join(" ").toLocaleLowerCase("bg").includes(q)
+  );
+
+  return (
+    <section className="history">
+      <div className="history-head">
+        <div>
+          <h1>Моите задачи</h1>
+          <p className="lead">Всяка анализирана задача се запазва тук. Отворете я, за да изтеглите новата версия или да изберете други предложения.</p>
+        </div>
+        <button className="primary" onClick={onNew}>+ Нова задача</button>
+      </div>
+
+      {error && <p className="error" role="alert">{error}</p>}
+
+      {items === null && !error ? (
+        <div className="loading"><div className="spinner" /></div>
+      ) : items && items.length === 0 ? (
+        <div className="card empty">
+          <h2>Все още нямате запазени задачи</h2>
+          <p className="hint">Анализирайте първата си задача и тя ще се появи тук.</p>
+          <button className="primary" onClick={onNew}>Анализирай задача</button>
+        </div>
+      ) : items ? (
+        <>
+          {items.length > 5 && (
+            <input className="search" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Търсене по заглавие, предмет или клас…" />
+          )}
+          <ul className="history-list">
+            {shown.map((it) => (
+              <li key={it.id} className="history-item">
+                <button className="history-open" onClick={() => onOpen(it.id)}>
+                  <span className="history-title">{it.title}</span>
+                  <span className="history-meta">
+                    {[it.context?.grade, it.context?.subject].filter(Boolean).join(" · ")}
+                    {(it.context?.grade || it.context?.subject) && " · "}
+                    {dateFmt.format(new Date(it.updated_at))}
+                  </span>
+                  <span className="history-status">
+                    <ScorePill before={it.score_before} after={it.has_final ? it.score_after : null} />
+                    {!it.has_final && <span className="draft">само анализ</span>}
+                  </span>
+                </button>
+                <button className="ghost small" onClick={() => remove(it)} aria-label={`Изтрий ${it.title}`}>
+                  Изтрий
+                </button>
+              </li>
+            ))}
+          </ul>
+          {shown.length === 0 && <p className="hint center">Няма задачи, които да отговарят на търсенето.</p>}
+        </>
+      ) : null}
+    </section>
+  );
+}

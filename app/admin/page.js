@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 export default function Admin() {
   const [password, setPassword] = useState("");
@@ -10,6 +10,8 @@ export default function Admin() {
   const [notice, setNotice] = useState("");
   const [form, setForm] = useState({ name: "", code: "", monthlyLimit: "" });
   const [busy, setBusy] = useState(false);
+  const [openSchool, setOpenSchool] = useState(null);
+  const [teachers, setTeachers] = useState([]);
 
   // Keep the admin password only for this browser tab.
   useEffect(() => {
@@ -101,6 +103,42 @@ export default function Admin() {
     run(() => api("DELETE", null, password, `?id=${s.id}`), "Училището е изтрито.");
   }
 
+  async function teachersApi(method, body, qs = "") {
+    const res = await fetch(`/api/admin/teachers${qs}`, {
+      method,
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Грешка.");
+    if (data.teachers) setTeachers(data.teachers);
+    return data;
+  }
+
+  function toggleTeachers(s) {
+    if (openSchool === s.id) {
+      setOpenSchool(null);
+      return;
+    }
+    setTeachers([]);
+    setOpenSchool(s.id);
+    run(() => teachersApi("GET", null, `?schoolId=${s.id}`));
+  }
+
+  function resetPin(t) {
+    if (!window.confirm(`Нулиране на ПИН кода на ${t.name}? При следващия вход ще въведе нов ПИН.`)) return;
+    run(() => teachersApi("PATCH", { id: t.id, resetPin: true }), `ПИН кодът на ${t.name} е нулиран. Кажете ѝ/му да влезе с „Имам профил“ и нов ПИН.`);
+  }
+
+  function removeTeacher(t) {
+    if (!window.confirm(`Изтриване на профила на ${t.name} заедно с всички запазени задачи? Това не може да се отмени.`)) return;
+    run(async () => {
+      const d = await teachersApi("DELETE", null, `?id=${t.id}`);
+      await api("GET");
+      return d;
+    }, "Профилът е изтрит.");
+  }
+
   function copy(code) {
     navigator.clipboard?.writeText(code).then(() => setNotice(`Кодът ${code} е копиран.`)).catch(() => {});
   }
@@ -186,7 +224,8 @@ export default function Admin() {
               </thead>
               <tbody>
                 {schools.map((s) => (
-                  <tr key={s.id} className={s.active ? "" : "row-off"}>
+                  <Fragment key={s.id}>
+                  <tr className={s.active ? "" : "row-off"}>
                     <td><strong>{s.name}</strong></td>
                     <td>
                       <code>{s.code}</code>{" "}
@@ -198,7 +237,11 @@ export default function Admin() {
                       {s.monthly_limit != null ? ` / ${s.monthly_limit}` : ""}
                     </td>
                     <td>{s.analyses_total}</td>
-                    <td>{s.teachers}</td>
+                    <td>
+                      <button className="link" onClick={() => toggleTeachers(s)}>
+                        {s.teachers} {openSchool === s.id ? "▲" : "▼"}
+                      </button>
+                    </td>
                     <td>{s.sessions}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <button className="ghost small" onClick={() => editLimit(s)} disabled={busy}>Лимит</button>{" "}
@@ -207,12 +250,52 @@ export default function Admin() {
                       <button className="ghost small" onClick={() => remove(s)} disabled={busy}>Изтрий</button>
                     </td>
                   </tr>
+                  {openSchool === s.id && (
+                    <tr className="teachers-row">
+                      <td colSpan={8}>
+                        {teachers.length === 0 ? (
+                          <p className="hint" style={{ margin: 0 }}>{busy ? "Зареждане…" : "Още няма създадени профили."}</p>
+                        ) : (
+                          <table className="teachers">
+                            <thead>
+                              <tr>
+                                <th>Учител</th>
+                                <th>Последен вход</th>
+                                <th>Анализи (месец)</th>
+                                <th>Запазени задачи</th>
+                                <th />
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {teachers.map((t) => (
+                                <tr key={t.id}>
+                                  <td>
+                                    <strong>{t.name}</strong>{" "}
+                                    {t.pin_reset && <span className="badge off">чака нов ПИН</span>}
+                                    {t.locked && <span className="badge off">заключен</span>}
+                                  </td>
+                                  <td>{t.last_login ? new Date(t.last_login).toLocaleDateString("bg-BG") : "–"}</td>
+                                  <td>{t.analyses_month}</td>
+                                  <td>{t.saved}</td>
+                                  <td style={{ whiteSpace: "nowrap" }}>
+                                    <button className="ghost small" onClick={() => resetPin(t)} disabled={busy}>Нулирай ПИН</button>{" "}
+                                    <button className="ghost small" onClick={() => removeTeacher(t)} disabled={busy}>Изтрий</button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        <p className="hint" style={{ marginTop: 14 }}>„Учители“ брои само тези, които са въвели име при вход.</p>
+        <p className="hint" style={{ marginTop: 14 }}>Натиснете броя учители, за да видите профилите, да нулирате забравен ПИН или да изтриете профил.</p>
       </section>
     </div>
   );

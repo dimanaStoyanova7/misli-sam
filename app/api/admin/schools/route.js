@@ -22,7 +22,7 @@ async function listSchools() {
     `SELECT sc.id, sc.name, sc.code, sc.active, sc.monthly_limit, sc.created_at,
             (SELECT count(*)::int FROM usage u WHERE u.school_id = sc.id AND u.kind = 'analyze' AND u.created_at >= date_trunc('month', now())) AS analyses_month,
             (SELECT count(*)::int FROM usage u WHERE u.school_id = sc.id AND u.kind = 'analyze') AS analyses_total,
-            (SELECT count(DISTINCT u.teacher_name)::int FROM usage u WHERE u.school_id = sc.id AND u.teacher_name IS NOT NULL) AS teachers,
+            (SELECT count(*)::int FROM teachers t WHERE t.school_id = sc.id) AS teachers,
             (SELECT count(*)::int FROM sessions s WHERE s.school_id = sc.id AND s.expires_at > now()) AS sessions
        FROM schools sc
       ORDER BY sc.created_at DESC`

@@ -14,9 +14,11 @@ Built with Next.js on Vercel, a Neon Postgres database, and the Anthropic API (C
 ## How access works
 
 - You create a **school** on the admin page (`/admin`). Each school gets its own **code**.
-- A teacher enters the code **once** (plus their name, optionally). They stay logged in on that device for **30 days**, and the 30 days renew while they keep using it.
+- A teacher enters the school code, then creates a **personal profile** with their name and a 4–6 digit **PIN**. On a new device they enter the code, name and PIN again. They stay logged in on each device for **30 days**, renewed while they keep using it.
+- Five wrong PINs lock the profile for 15 minutes. A forgotten PIN is reset from `/admin` (click the number of teachers for a school); the teacher then logs in with a new PIN of their choice.
+- Every analysis is saved automatically to the teacher's **„Моите задачи“**, private to them. They can reopen it (new version and export, or choose different suggestions without a new analysis) or delete it.
 - From `/admin` you can set a **monthly limit** of analyses per school, **stop** a school's access (its teachers are logged out on their next action), give it a **new code** (logs everyone out, useful if a code leaks), or delete it.
-- The admin page also shows usage per school: analyses this month and in total, number of named teachers, and active sessions.
+- The admin page also shows usage per school and per teacher: analyses this month and in total, saved assignments, last login, and active sessions.
 
 ---
 
@@ -67,12 +69,17 @@ npm run dev                  # http://localhost:3000
 app/page.js                    the teacher app (login + 3 steps)
 app/admin/page.js              admin page: schools, codes, limits, usage
 app/globals.css                design
-app/api/login|logout|me        session login with an http-only cookie
+app/api/login|logout|me        school code + name/PIN login, http-only session cookie
+app/api/assignments            the teacher's saved assignments (list, open, delete)
+app/api/admin/teachers         admin: teachers per school, PIN reset, delete
+app/History.js                 „Моите задачи“ page
+app/Board.js                   results: suggestions next to the part they refer to
 app/api/analyze/route.js       reads the file + scores + suggestions
 app/api/finalize/route.js      builds the final assignment from chosen suggestions
 app/api/admin/schools/route.js admin API (protected by ADMIN_PASSWORD)
 lib/ai.js                      prompts, output format, Anthropic call
-lib/auth.js                    sessions, codes, limits, usage
+lib/auth.js                    sessions, codes, PINs, limits, usage
+lib/assignments.js             saving and loading assignments
 lib/db.js                      database connection + automatic table setup
 lib/mock.js                    sample AI answers for MOCK_AI=1
 lib/client.js                  image compression, Word export
@@ -84,4 +91,3 @@ To change how suggestions are written, edit the `SYSTEM` prompt in `lib/ai.js`.
 - Eval test set for the AI output
 - "What a student would get from ChatGPT" preview
 - Oral check questions
-- Saved history per teacher

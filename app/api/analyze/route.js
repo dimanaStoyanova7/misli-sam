@@ -1,5 +1,6 @@
 import { ANALYZE_TOOL, callTool, describeContext, errorResponse, json as plainJson, normalizeAnalysis } from "@/lib/ai";
 import { dbErrorResponse, finish, overLimit, recordUsage, requireSession } from "@/lib/auth";
+import { saveAnalysis } from "@/lib/assignments";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -62,7 +63,15 @@ export async function POST(req) {
       return json({ error: "Не успяхме да разпознаем задача във файла. Опитайте с по-ясна снимка или поставете текста." }, 422);
     }
     await recordUsage(session, "analyze");
-    return json(normalizeAnalysis(result));
+    const analysis = normalizeAnalysis(result);
+    let assignmentId = null;
+    try {
+      assignmentId = await saveAnalysis(session, { analysis, context });
+    } catch (e) {
+      console.error("saveAnalysis failed", e);
+      return json({ error: "Анализът е готов, но не успяхме да го запазим. Опитайте отново." }, 500);
+    }
+    return json({ ...analysis, assignmentId });
   } catch (err) {
     return finish(errorResponse(err), session);
   }

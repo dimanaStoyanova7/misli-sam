@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board from "./Board";
+import History from "./History";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
 const LOADING = {
   analyze: ["Разчитаме задачата…", "Проверяваме колко лесно би я решил ИИ…", "Подбираме предложения…", "Почти готово…"],
   finalize: ["Обединяваме избраните промени…", "Пишем новата задача…", "Оценяваме я отново…"],
+  open: ["Отваряме задачата…"],
 };
 
 // ---------- Small pieces ----------
@@ -65,7 +67,7 @@ function Loading({ kind }) {
     <div className="loading" role="status">
       <div className="spinner" />
       <p>{LOADING[kind][i]}</p>
-      <small>Обикновено отнема 20–40 секунди.</small>
+      {kind !== "open" && <small>Обикновено отнема 20–40 секунди.</small>}
     </div>
   );
 }
@@ -85,26 +87,43 @@ function Steps({ step }) {
   );
 }
 
-function LoginCard({ initialError, onLogin, onLoggedIn }) {
+function LoginCard({ initialError, onLogin }) {
+  const [stage, setStage] = useState("code"); // "code" -> "teacher"
   const [code, setCode] = useState("");
+  const [school, setSchool] = useState("");
+  const [mode, setMode] = useState("login"); // "login" | "create"
   const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
+  const [pin2, setPin2] = useState("");
   const [error, setError] = useState(initialError || "");
+  const [info, setInfo] = useState("");
   const [sending, setSending] = useState(false);
 
-  async function submit(e) {
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("misli-sam-school-code");
+      if (saved) setCode(saved);
+    } catch {}
+  }, []);
+
+  async function send(body) {
+    const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }
+
+  async function submitCode(e) {
     e.preventDefault();
     setError("");
     setSending(true);
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, name }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Входът не успя.");
-      onLogin(data);
-      onLoggedIn();
+      const { ok, data } = await send({ code });
+      if (!ok) throw new Error(data.error || "Невалиден код.");
+      setSchool(data.school);
+      setStage("teacher");
+      try {
+        localStorage.setItem("misli-sam-school-code", code.trim());
+      } catch {}
     } catch (err) {
       setError(err.message);
     } finally {
@@ -112,25 +131,97 @@ function LoginCard({ initialError, onLogin, onLoggedIn }) {
     }
   }
 
+  async function submitTeacher(e) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    if (mode === "create" && pin !== pin2) {
+      setError("ПИН кодовете не съвпадат.");
+      return;
+    }
+    setSending(true);
+    try {
+      const { ok, data } = await send({ code, name, pin, mode });
+      if (!ok) {
+        if (data.notFound) setInfo("Ако влизате за първи път, изберете „Нов профил“.");
+        if (data.exists) setMode("login");
+        throw new Error(data.error || "Входът не успя.");
+      }
+      onLogin(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const switchMode = (m) => {
+    setMode(m);
+    setError("");
+    setInfo("");
+    setPin("");
+    setPin2("");
+  };
+
+  if (stage === "code") {
+    return (
+      <section className="card login">
+        <h1>Добре дошли</h1>
+        <p className="lead">Въведете кода на вашето училище.</p>
+        <form onSubmit={submitCode}>
+          <label>
+            Код на училището
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="напр. K7MQ4XPA" autoComplete="off" autoCapitalize="characters" required autoFocus />
+          </label>
+          {error && <p className="error" role="alert">{error}</p>}
+          <button className="primary big" type="submit" disabled={sending}>
+            {sending ? "Проверка…" : "Напред"}
+          </button>
+        </form>
+        <p className="privacy">Нямате код? Попитайте директора или администратора на училището.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="card login">
-      <h1>Добре дошли</h1>
-      <p className="lead">Въведете кода на вашето училище. Ще го въвеждате само веднъж – после ще останете влезли на това устройство.</p>
-      <form onSubmit={submit}>
+      <button className="link back" onClick={() => { setStage("code"); setError(""); setInfo(""); }}>← {school}</button>
+      <h1>{mode === "login" ? "Вход" : "Нов профил"}</h1>
+      <p className="lead">
+        {mode === "login"
+          ? "Въведете името и ПИН кода на вашия профил."
+          : "Създайте личен профил. В него ще се пазят вашите задачи. Изберете ПИН от 4 до 6 цифри, който ще запомните."}
+      </p>
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "on" : ""} onClick={() => switchMode("login")}>
+          Имам профил
+        </button>
+        <button type="button" role="tab" aria-selected={mode === "create"} className={mode === "create" ? "on" : ""} onClick={() => switchMode("create")}>
+          Нов профил
+        </button>
+      </div>
+      <form onSubmit={submitTeacher}>
         <label>
-          Код на училището
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="напр. K7MQ4XPA" autoComplete="off" autoCapitalize="characters" required autoFocus />
+          Име и фамилия
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Мария Петрова" autoComplete="name" required autoFocus />
         </label>
         <label>
-          Вашето име <span className="optional">(по избор)</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="напр. Мария Петрова" autoComplete="name" />
+          ПИН код
+          <input type="password" inputMode="numeric" pattern="[0-9]{4,6}" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="4–6 цифри" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
         </label>
+        {mode === "create" && (
+          <label>
+            Повторете ПИН кода
+            <input type="password" inputMode="numeric" pattern="[0-9]{4,6}" maxLength={6} value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, ""))} autoComplete="new-password" required />
+          </label>
+        )}
         {error && <p className="error" role="alert">{error}</p>}
+        {info && <p className="hint">{info}</p>}
         <button className="primary big" type="submit" disabled={sending}>
-          {sending ? "Влизане…" : "Вход"}
+          {sending ? "Влизане…" : mode === "login" ? "Вход" : "Създай профил"}
         </button>
       </form>
-      <p className="privacy">Нямате код? Попитайте директора или администратора на училището.</p>
+      <p className="privacy">Ще останете влезли на това устройство 30 дни. Забравен ПИН? Администраторът може да го нулира.</p>
     </section>
   );
 }
@@ -151,6 +242,8 @@ export default function Home() {
   const [selected, setSelected] = useState([]);
   const [final, setFinal] = useState(null);
   const [compareTab, setCompareTab] = useState("after"); // phones only: which version to show
+  const [view, setView] = useState("work"); // "work" | "history"
+  const [assignmentId, setAssignmentId] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
   const topRef = useRef(null);
@@ -226,6 +319,7 @@ export default function Home() {
     try {
       const data = await post("/api/analyze", { ...payload, context: ctx });
       setAnalysis(data);
+      setAssignmentId(data.assignmentId);
       setSelected(data.suggestions.map(() => true));
       setFinal(null);
       setStep("results");
@@ -246,12 +340,7 @@ export default function Home() {
     }
     setBusy("finalize");
     try {
-      const data = await post("/api/finalize", {
-        original: analysis.extracted_text,
-        suggestions: chosen,
-        context: ctx,
-        scoreBefore: analysis.ai_score_before,
-      });
+      const data = await post("/api/finalize", { assignmentId, selected });
       setFinal(data);
       setCompareTab("after");
       setStep("final");
@@ -262,7 +351,39 @@ export default function Home() {
     }
   }
 
+  async function openSaved(id) {
+    setError("");
+    setBusy("open");
+    try {
+      const res = await fetch(`/api/assignments/${id}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.needsLogin) {
+        setMe({ loggedIn: false, error: data.error });
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || "Задачата не можа да бъде отворена.");
+      setAnalysis(data.analysis);
+      setAssignmentId(data.id);
+      setCtx({ grade: "", subject: "", setting: "home", grading: "mid", ...(data.context || {}) });
+      setSelected(data.analysis.suggestions.map((_, i) => (data.selected ? Boolean(data.selected[i]) : true)));
+      setFinal(data.final);
+      setCompareTab("after");
+      setView("work");
+      setStep(data.final ? "final" : "results");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function newAssignment() {
+    restart();
+    setView("work");
+  }
+
   function restart() {
+    setAssignmentId(null);
     setStep("input");
     setAnalysis(null);
     setFinal(null);
@@ -275,7 +396,7 @@ export default function Home() {
   const chosenCount = selected.filter(Boolean).length;
 
   return (
-    <div className={`shell ${(step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
+    <div className={`shell ${view === "work" && (step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
         <div className="brand">
           <span className="mark">М</span>
@@ -284,7 +405,7 @@ export default function Home() {
             <small>задачи, които карат учениците да мислят</small>
           </div>
         </div>
-        {me?.loggedIn && <Steps step={step} />}
+        {me?.loggedIn && view === "work" && <Steps step={step} />}
       </header>
 
       {me?.loggedIn && (
@@ -294,7 +415,15 @@ export default function Home() {
             {me.teacher ? ` · ${me.teacher}` : ""}
             {me.limit != null && me.used != null ? ` · ${me.used} от ${me.limit} анализа този месец` : ""}
           </span>
-          <button className="link" onClick={signOut}>Изход</button>
+          <span className="account-actions">
+            {view === "work" && step !== "input" ? (
+              <button className="link" onClick={newAssignment}>+ Нова задача</button>
+            ) : null}
+            {view !== "history" && (
+              <button className="link" onClick={() => { setError(""); setView("history"); }}>Моите задачи</button>
+            )}
+            <button className="link" onClick={signOut}>Изход</button>
+          </span>
         </div>
       )}
 
@@ -302,9 +431,18 @@ export default function Home() {
         {me === null ? (
           <div className="loading"><div className="spinner" /></div>
         ) : !me.loggedIn ? (
-          <LoginCard initialError={me.error} onLogin={(d) => setMe({ loggedIn: true, ...d })} onLoggedIn={refreshUsage} />
+          <LoginCard
+            initialError={me.error}
+            onLogin={(d) => {
+              setMe({ loggedIn: true, ...d });
+              newAssignment();
+              refreshUsage();
+            }}
+          />
         ) : busy ? (
           <Loading kind={busy} />
+        ) : view === "history" ? (
+          <History onOpen={openSaved} onNew={newAssignment} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
         ) : step === "input" ? (
           <section className="card">
             <h1>Направете задачата по-трудна за решаване с ИИ</h1>
@@ -496,6 +634,7 @@ export default function Home() {
               </button>
             </div>
             <p className="hint center">За PDF изберете „Запази като PDF“ в прозореца за печат.</p>
+            <p className="hint center saved-note">✓ Запазено в „Моите задачи“.</p>
             <div className="center">
               <button className="link" onClick={restart}>Анализирай друга задача</button>
             </div>
