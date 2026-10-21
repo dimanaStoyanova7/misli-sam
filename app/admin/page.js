@@ -1,5 +1,6 @@
 "use client";
 
+import Logo from "../Logo";
 import { Fragment, useEffect, useState } from "react";
 
 export default function Admin() {
@@ -173,7 +174,7 @@ export default function Admin() {
     <div className="shell admin" style={{ maxWidth: 1080 }}>
       <header className="top">
         <div className="brand">
-          <span className="logo">М</span>
+          <Logo />
           <span className="who-text">
             <span className="brand-name">Мисли сам · Администрация</span>
             <small>{schools.length} училища · {totalMonth} анализа този месец</small>

@@ -52,7 +52,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .top .brand { margin-right: auto; }
 .account-box { display: flex; align-items: center; gap: 4px; }
 .brand { display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; cursor: pointer; }
-.logo { width: 40px; height: 40px; border-radius: 12px; background: var(--violet); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 20px; }
+.logo-svg { display: block; flex-shrink: 0; }
 .brand-name { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
 .nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .nav > button { border: 0; background: none; font-weight: 600; font-size: 14px; color: var(--muted); padding: 9px 15px; border-radius: 99px; cursor: pointer; }

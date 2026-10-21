@@ -1,5 +1,6 @@
 "use client";
 
+import Logo from "./Logo";
 import { useEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board from "./Board";
@@ -429,7 +430,7 @@ export default function Home() {
     <div className={`shell ${view === "work" && (step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
         <button className="brand" onClick={() => me?.loggedIn && me.settings && newAssignment()} aria-label="Мисли сам – начало">
-          <span className="logo">М</span>
+          <Logo />
           <span className="brand-name">Мисли сам</span>
         </button>
         {me?.loggedIn && me.settings && (

@@ -1,0 +1,14 @@
+// The Мисли сам logo: a thought cloud with a pencil (same drawing as app/icon.svg).
+export default function Logo({ size = 40 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Мисли сам" className="logo-svg">
+      <rect width="64" height="64" rx="16" fill="#5a3fd0"/><g transform="translate(2.3 1.3) scale(0.92)"><path d="M21 43 C13.5 43 10 36 14 31 C9.5 25.5 13.5 16.5 21.5 17.5 C24 10 34 8.5 38 14.5 C43 9.5 53 12.5 52 20.5 C58 23.5 57.5 33.5 51 35.5 C51.5 42 44 45.5 39 42.5 C35 46 26 46.5 21 43 Z" fill="none" stroke="#ffffff" strokeWidth="4.6" strokeLinejoin="round"/>
+  <circle cx="15.5" cy="49.5" r="3.6" fill="#ffffff"/>
+  <circle cx="9" cy="56" r="2.3" fill="#ffffff"/>
+  <g transform="rotate(-45 33 28)">
+    <path d="M24 24.6 H40.5 Q43 24.6 43 27 V29 Q43 31.4 40.5 31.4 H24 L18.5 28 Z" fill="#ffffff"/>
+    <path d="M24 23.6 V32.4" stroke="#5a3fd0" strokeWidth="1.8"/>
+  </g></g>
+    </svg>
+  );
+}
