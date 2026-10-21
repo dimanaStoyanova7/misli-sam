@@ -350,3 +350,43 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .admin .teachers-row > td { background: #faf7f0; padding: 14px 16px; }
 .admin table.teachers { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
 .admin .badge { margin-left: 4px; }
+
+/* ---------- Setup / Настройки ---------- */
+.setup { max-width: 760px; margin: 0 auto 20px; }
+.setup .sub { display: flex; align-items: baseline; gap: 10px; }
+.counter { font-family: "Manrope", sans-serif; font-size: 13px; font-weight: 700; color: var(--muted); }
+.stage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stage {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  border: 1.5px solid var(--line); background: #fff; border-radius: 14px; padding: 16px; cursor: pointer; transition: .15s;
+}
+.stage strong { font-family: "Lora", Georgia, serif; font-size: 19px; }
+.stage small { color: var(--muted); font-size: 13px; }
+.stage:hover { border-color: var(--accent); }
+.stage.on { border-color: var(--accent); background: var(--accent-soft); }
+.stage .check {
+  position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid #cfc5b2; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff;
+}
+.stage.on .check { background: var(--accent); border-color: var(--accent); }
+.subject-grid, .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn {
+  border: 1.5px solid var(--line); background: #fff; border-radius: 99px; padding: 7px 14px; font-weight: 600; font-size: 14px; cursor: pointer; transition: .12s;
+}
+.chip-btn:hover:not(:disabled) { border-color: var(--accent); }
+.chip-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip-btn:disabled { opacity: .4; cursor: not-allowed; }
+.chip-btn.round { min-width: 40px; padding: 7px 0; text-align: center; }
+.other { margin-top: 14px; max-width: 360px; }
+.setup .actions { margin-top: 26px; }
+
+/* ---------- Upload context ---------- */
+.context-row { display: flex; flex-direction: column; gap: 16px; margin-top: 22px; }
+.ctx-group { display: flex; flex-direction: column; gap: 8px; }
+.ctx-label { font-size: 14px; font-weight: 700; }
+.tabs.segmented { margin: 0; align-self: flex-start; }
+.ctx-note { margin: 12px 0 0; }
+
+@media (max-width: 640px) {
+  .stage-grid { grid-template-columns: 1fr; }
+}

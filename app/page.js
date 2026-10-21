@@ -4,8 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board from "./Board";
 import History from "./History";
+import Setup from "./Setup";
+import { gradeChoices, subjectChoices } from "@/lib/subjects";
 
-const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const LAST_KEY = "misli-sam-last";
+const readLast = () => {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
 
 const LOADING = {
   analyze: ["Разчитаме задачата…", "Проверяваме колко лесно би я решил ИИ…", "Подбираме предложения…", "Почти готово…"],
@@ -234,7 +244,7 @@ export default function Home() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [text, setText] = useState("");
-  const [ctx, setCtx] = useState({ grade: "", subject: "", setting: "home", grading: "mid" });
+  const [ctx, setCtx] = useState({ grade: "", subject: "", setting: "home" });
   const [me, setMe] = useState(null); // null = checking, {loggedIn:false} or {loggedIn:true,...}
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
@@ -244,6 +254,28 @@ export default function Home() {
   const [compareTab, setCompareTab] = useState("after"); // phones only: which version to show
   const [view, setView] = useState("work"); // "work" | "history"
   const [assignmentId, setAssignmentId] = useState(null);
+
+  const settings = me?.loggedIn ? me.settings : null;
+  const subjects = subjectChoices(settings);
+  const grades = gradeChoices(settings);
+
+  // Fill in subject/grade from the teacher's settings and their last choice.
+  function applyDefaults(st = settings) {
+    if (!st) return;
+    const last = readLast();
+    const subs = subjectChoices(st);
+    const grs = gradeChoices(st);
+    setCtx({
+      subject: subs.includes(last.subject) ? last.subject : subs[0] || "",
+      grade: grs.includes(last.grade) ? last.grade : "",
+      setting: ["home", "class", "both"].includes(last.setting) ? last.setting : "home",
+    });
+  }
+
+  useEffect(() => {
+    applyDefaults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(settings)]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
   const topRef = useRef(null);
@@ -317,7 +349,16 @@ export default function Home() {
     }
     setBusy("analyze");
     try {
-      const data = await post("/api/analyze", { ...payload, context: ctx });
+      const context = {
+        subject: ctx.subject,
+        grade: ctx.grade ? `${ctx.grade} клас` : "",
+        setting: ctx.setting,
+        stages: settings?.stages || [],
+      };
+      try {
+        localStorage.setItem(LAST_KEY, JSON.stringify({ subject: ctx.subject, grade: ctx.grade, setting: ctx.setting }));
+      } catch {}
+      const data = await post("/api/analyze", { ...payload, context });
       setAnalysis(data);
       setAssignmentId(data.assignmentId);
       setSelected(data.suggestions.map(() => true));
@@ -364,7 +405,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || "Задачата не можа да бъде отворена.");
       setAnalysis(data.analysis);
       setAssignmentId(data.id);
-      setCtx({ grade: "", subject: "", setting: "home", grading: "mid", ...(data.context || {}) });
+      setCtx({ grade: "", subject: "", setting: "home", ...(data.context || {}) });
       setSelected(data.analysis.suggestions.map((_, i) => (data.selected ? Boolean(data.selected[i]) : true)));
       setFinal(data.final);
       setCompareTab("after");
@@ -384,6 +425,7 @@ export default function Home() {
 
   function restart() {
     setAssignmentId(null);
+    applyDefaults();
     setStep("input");
     setAnalysis(null);
     setFinal(null);
@@ -405,7 +447,7 @@ export default function Home() {
             <small>задачи, които карат учениците да мислят</small>
           </div>
         </div>
-        {me?.loggedIn && view === "work" && <Steps step={step} />}
+        {me?.loggedIn && me.settings && view === "work" && <Steps step={step} />}
       </header>
 
       {me?.loggedIn && (
@@ -416,12 +458,17 @@ export default function Home() {
             {me.limit != null && me.used != null ? ` · ${me.used} от ${me.limit} анализа този месец` : ""}
           </span>
           <span className="account-actions">
+            {me.settings && (<>
             {view === "work" && step !== "input" ? (
               <button className="link" onClick={newAssignment}>+ Нова задача</button>
             ) : null}
             {view !== "history" && (
               <button className="link" onClick={() => { setError(""); setView("history"); }}>Моите задачи</button>
             )}
+            {view !== "settings" && (
+              <button className="link" onClick={() => setView("settings")}>Настройки</button>
+            )}
+            </>)}
             <button className="link" onClick={signOut}>Изход</button>
           </span>
         </div>
@@ -438,6 +485,17 @@ export default function Home() {
               newAssignment();
               refreshUsage();
             }}
+          />
+        ) : !me.settings ? (
+          <Setup firstTime onSaved={(st) => setMe({ ...me, settings: st })} />
+        ) : view === "settings" ? (
+          <Setup
+            initial={me.settings}
+            onSaved={(st) => {
+              setMe({ ...me, settings: st });
+              setView("work");
+            }}
+            onCancel={() => setView("work")}
           />
         ) : busy ? (
           <Loading kind={busy} />
@@ -502,40 +560,60 @@ export default function Home() {
               />
             )}
 
-            <h2 className="sub">Контекст</h2>
-            <p className="hint">Помага предложенията да са реалистични за вашия клас.</p>
-            <div className="grid">
-              <label>
-                Клас
-                <select value={ctx.grade} onChange={(e) => setCtx({ ...ctx, grade: e.target.value })}>
-                  <option value="">– изберете –</option>
-                  {GRADES.map((g) => (
-                    <option key={g} value={`${g} клас`}>{g} клас</option>
+            <div className="context-row">
+              {subjects.length > 1 && (
+                <div className="ctx-group">
+                  <span className="ctx-label">Предмет</span>
+                  <div className="chips">
+                    {subjects.map((sub) => (
+                      <button key={sub} type="button" className={`chip-btn ${ctx.subject === sub ? "on" : ""}`} aria-pressed={ctx.subject === sub} onClick={() => setCtx({ ...ctx, subject: sub })}>
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {grades.length > 0 && (
+                <div className="ctx-group">
+                  <span className="ctx-label">
+                    Клас <span className="optional">(по избор)</span>
+                  </span>
+                  <div className="chips">
+                    {grades.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        className={`chip-btn round ${ctx.grade === g ? "on" : ""}`}
+                        aria-pressed={ctx.grade === g}
+                        onClick={() => setCtx({ ...ctx, grade: ctx.grade === g ? "" : g })}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="ctx-group">
+                <span className="ctx-label">Къде се изпълнява</span>
+                <div className="tabs segmented">
+                  {[
+                    ["home", "У дома"],
+                    ["class", "В клас"],
+                    ["both", "И двете"],
+                  ].map(([v, label]) => (
+                    <button key={v} type="button" className={ctx.setting === v ? "on" : ""} aria-pressed={ctx.setting === v} onClick={() => setCtx({ ...ctx, setting: v })}>
+                      {label}
+                    </button>
                   ))}
-                  <option value="университет">Университет</option>
-                </select>
-              </label>
-              <label>
-                Предмет
-                <input value={ctx.subject} onChange={(e) => setCtx({ ...ctx, subject: e.target.value })} placeholder="напр. Български език и литература" />
-              </label>
-              <label>
-                Къде се изпълнява
-                <select value={ctx.setting} onChange={(e) => setCtx({ ...ctx, setting: e.target.value })}>
-                  <option value="home">У дома</option>
-                  <option value="class">В клас</option>
-                  <option value="both">И двете</option>
-                </select>
-              </label>
-              <label>
-                Време за проверка
-                <select value={ctx.grading} onChange={(e) => setCtx({ ...ctx, grading: e.target.value })}>
-                  <option value="low">Малко</option>
-                  <option value="mid">Средно</option>
-                  <option value="high">Достатъчно</option>
-                </select>
-              </label>
+                </div>
+              </div>
             </div>
+            {subjects.length === 1 && (
+              <p className="hint ctx-note">
+                Предмет: {subjects[0]} ·{" "}
+                <button className="link" onClick={() => setView("settings")}>промени</button>
+              </p>
+            )}
 
             {error && <p className="error" role="alert">{error}</p>}
 

@@ -16,6 +16,7 @@ Built with Next.js on Vercel, a Neon Postgres database, and the Anthropic API (C
 - You create a **school** on the admin page (`/admin`). Each school gets its own **code**.
 - A teacher enters the school code, then creates a **personal profile** with their name and a 4–6 digit **PIN**. On a new device they enter the code, name and PIN again. They stay logged in on each device for **30 days**, renewed while they keep using it.
 - Five wrong PINs lock the profile for 15 minutes. A forgotten PIN is reset from `/admin` (click the number of teachers for a school); the teacher then logs in with a new PIN of their choice.
+- After creating a profile, the teacher answers once which **stages** they teach (1–4, 5–7, 8–12; several allowed) and up to **3 subjects** (not needed for 1–4). This can be changed any time under **Настройки**. The upload page then only offers subject chips (when there are 2–3), optional grade chips, and „У дома / В клас“, remembering the last choice.
 - Every analysis is saved automatically to the teacher's **„Моите задачи“**, private to them. They can reopen it (new version and export, or choose different suggestions without a new analysis) or delete it.
 - From `/admin` you can set a **monthly limit** of analyses per school, **stop** a school's access (its teachers are logged out on their next action), give it a **new code** (logs everyone out, useful if a code leaks), or delete it.
 - The admin page also shows usage per school and per teacher: analyses this month and in total, saved assignments, last login, and active sessions.

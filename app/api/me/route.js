@@ -20,5 +20,5 @@ export async function GET(req) {
   try {
     used = s.monthlyLimit != null ? await usedThisMonth(s.schoolId) : null;
   } catch {}
-  return finish(NextResponse.json({ loggedIn: true, school: s.school, teacher: s.teacher, limit: s.monthlyLimit, used }), s);
+  return finish(NextResponse.json({ loggedIn: true, school: s.school, teacher: s.teacher, settings: s.settings, limit: s.monthlyLimit, used }), s);
 }
