@@ -1,4 +1,4 @@
-import { FINALIZE_TOOL, callTool, describeContext, errorResponse, json as plainJson } from "@/lib/ai";
+import { AI_SAMPLE_RULE, FINALIZE_TOOL, callTool, describeContext, errorResponse, json as plainJson } from "@/lib/ai";
 import { dbErrorResponse, finish, recordUsage, requireSession } from "@/lib/auth";
 import { getAssignment, saveFinal } from "@/lib/assignments";
 
@@ -59,7 +59,9 @@ ${chosenText}
 
 Оценка преди промените: ${analysis.ai_score_before ?? "неизвестна"}/10.
 
-Напиши една цялостна, преработена версия на материала, която обединява избраните промени естествено, запазва учебните цели, нивото и обема и е готова за раздаване на учениците. Частите без избрани промени запази почти без промяна. След това оцени по същата скала колко лесно е да се изпълни с ИИ сега.`;
+Напиши една цялостна, преработена версия на материала, която обединява избраните промени естествено, запазва учебните цели, нивото и обема и е готова за раздаване на учениците. Частите без избрани промени запази почти без промяна. Ако някоя промяна изисква готов текст или материал, напиши го ти и го включи, за да няма допълнителна подготовка за учителя. След това оцени по същата скала колко лесно е да се изпълни с ИИ сега.${
+    chosen.some((s) => s.needs_ai_sample || /отговор (от|на) ИИ|генериран от ИИ/i.test(`${s.title} ${s.change}`)) ? `\n\n${AI_SAMPLE_RULE}` : ""
+  }`;
 
   try {
     const result = await callTool({ content: [{ type: "text", text }], tool: FINALIZE_TOOL, maxTokens: 6000 });

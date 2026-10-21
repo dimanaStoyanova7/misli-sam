@@ -29,7 +29,12 @@ function SuggestionCard({ s, num, on, onToggle, otherTargets, onJump, onHover, a
 
       <div className="sug-meta">
         <span className={`impact impact-${IMPACT[s.impact] || "low"}`}>{s.impact ? `${s.impact[0].toUpperCase()}${s.impact.slice(1)} ефект` : "Ефект"}</span>
-        {s.costs?.[0] && <span className="meta-item">{s.costs[0]}</span>}
+        {s.costs?.[0] && (
+          <span className="meta-item cost" title="Допълнителни усилия за вас">
+            ⏱ За вас: {s.costs[0].replace(/^\+\s*/, "")}
+          </span>
+        )}
+        {s.needs_ai_sample && <span className="meta-item ready">✓ Отговорът от ИИ се генерира автоматично</span>}
         {otherTargets.length > 0 && (
           <span className="meta-item also">
             също за{" "}

@@ -217,6 +217,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--v
 .impact-mid { background: var(--amber); color: var(--amber-ink); }
 .impact-low { background: var(--bg); color: var(--muted); }
 .meta-item { display: inline-flex; align-items: center; gap: 4px; }
+.meta-item.cost { color: var(--amber-ink); }
+.meta-item.ready { color: var(--mint-ink); }
 .meta-item + .meta-item::before, .impact + .meta-item::before { content: "·"; color: var(--faint); margin-right: 8px; }
 .toggle { flex-shrink: 0; border: 0; background: var(--bg); border-radius: 99px; padding: 9px 15px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .toggle:hover { background: var(--violet-50); }
