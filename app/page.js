@@ -150,6 +150,7 @@ export default function Home() {
   const [analysis, setAnalysis] = useState(null);
   const [selected, setSelected] = useState([]);
   const [final, setFinal] = useState(null);
+  const [compareTab, setCompareTab] = useState("after"); // phones only: which version to show
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
   const topRef = useRef(null);
@@ -252,6 +253,7 @@ export default function Home() {
         scoreBefore: analysis.ai_score_before,
       });
       setFinal(data);
+      setCompareTab("after");
       setStep("final");
     } catch (e) {
       setError(e.message);
@@ -273,7 +275,7 @@ export default function Home() {
   const chosenCount = selected.filter(Boolean).length;
 
   return (
-    <div className={`shell ${step === "results" && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
+    <div className={`shell ${(step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
         <div className="brand">
           <span className="mark">М</span>
@@ -446,9 +448,34 @@ export default function Home() {
               <p className="compare-reason">{final.score_reason}</p>
             </div>
 
-            <div className="card doc print-area">
-              <h1 className="doc-title">{final.title}</h1>
-              <RichText text={final.assignment} />
+            <div className="tabs compare-tabs" role="tablist">
+              <button role="tab" aria-selected={compareTab === "before"} className={compareTab === "before" ? "on" : ""} onClick={() => setCompareTab("before")}>
+                Преди
+              </button>
+              <button role="tab" aria-selected={compareTab === "after"} className={compareTab === "after" ? "on" : ""} onClick={() => setCompareTab("after")}>
+                След
+              </button>
+            </div>
+
+            <div className={`versions show-${compareTab}`}>
+              <div className="version before">
+                <div className="version-label">Преди</div>
+                <div className="card doc">
+                  {analysis.parts.map((p) => (
+                    <div key={p.id} className="old-part">
+                      <div className="part-label">{p.label}</div>
+                      <p>{p.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="version after">
+                <div className="version-label">След</div>
+                <div className="card doc print-area">
+                  <h1 className="doc-title">{final.title}</h1>
+                  <RichText text={final.assignment} />
+                </div>
+              </div>
             </div>
 
             <div className="card notes">

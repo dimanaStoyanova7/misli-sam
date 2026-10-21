@@ -280,3 +280,32 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   .row .notes-col > .sug::before { display: none; }
   .row-empty .notes-col { display: none; }
 }
+
+/* ---------- Final step: before / after ---------- */
+.compare-tabs { display: none; }
+.versions { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; margin-bottom: 20px; }
+.version > .card { margin-bottom: 0; height: 100%; }
+.version-label { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px 4px; }
+.version.before .version-label { color: var(--muted); }
+.version.after .version-label { color: var(--accent); }
+.version.before .card { background: #faf7f0; box-shadow: none; }
+.version.before .card, .version.before .part-label { color: var(--muted); }
+.version.after .card { border: 1.5px solid var(--accent); }
+.version .doc { padding: 28px; }
+.old-part { margin-bottom: 16px; }
+.old-part:last-child { margin-bottom: 0; }
+.old-part p { margin: 4px 0 0; white-space: pre-wrap; font-family: "Lora", Georgia, serif; font-size: 16px; line-height: 1.6; }
+.old-part .part-label { color: var(--muted); }
+
+@media (max-width: 860px) {
+  .compare-tabs { display: inline-flex; }
+  .versions { grid-template-columns: 1fr; }
+  .versions.show-after .version.before, .versions.show-before .version.after { display: none; }
+  .version-label { display: none; }
+  .version .doc { padding: 22px; }
+}
+
+@media print {
+  .versions, .version, .version.after { display: block !important; }
+  .print-area { border: 0 !important; height: auto !important; bottom: auto !important; border-radius: 0 !important; }
+}
