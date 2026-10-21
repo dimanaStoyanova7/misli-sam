@@ -7,7 +7,7 @@ import { useMemo, useRef, useState } from "react";
 
 const IMPACT = { висок: "high", среден: "mid", нисък: "low" };
 
-function SuggestionCard({ s, num, on, onToggle, partLabel, otherTargets, onJump, onHover, active }) {
+function SuggestionCard({ s, num, on, onToggle, otherTargets, onJump, onHover, active }) {
   return (
     <article
       id={`sug-${num}`}
@@ -20,49 +20,35 @@ function SuggestionCard({ s, num, on, onToggle, partLabel, otherTargets, onJump,
       <header>
         <div className="sug-title">
           <span className="num">{num}</span>
-          <div>
-            <div className="sug-meta">
-              <span className={`impact impact-${IMPACT[s.impact] || "low"}`}>{s.impact} ефект</span>
-              {partLabel && <span className="for">за {partLabel}</span>}
-            </div>
-            <h3>{s.title}</h3>
-          </div>
+          <h3>{s.title}</h3>
         </div>
         <button className={`toggle ${on ? "on" : ""}`} aria-pressed={on} onClick={onToggle}>
           {on ? "✓ Включено" : "Включи"}
         </button>
       </header>
 
-      {otherTargets.length > 0 && (
-        <div className="also">
-          Отнася се и за:{" "}
-          {otherTargets.map((p) => (
-            <button key={p.id} className="chip" onClick={() => onJump(p.id)}>
-              {p.label} ↓
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="sug-body">
-        <div className="sug-row">
-          <h4>Какво да промените</h4>
-          <p>{s.change}</p>
-        </div>
-        <div className="sug-row problem">
-          <h4>Какъв проблем решава</h4>
-          <p>{s.problem}</p>
-        </div>
-        <div className="sug-row example">
-          <h4>Как може да звучи</h4>
-          <p>{s.example}</p>
-        </div>
+      <div className="sug-meta">
+        <span className={`impact impact-${IMPACT[s.impact] || "low"}`}>{s.impact ? `${s.impact[0].toUpperCase()}${s.impact.slice(1)} ефект` : "Ефект"}</span>
+        {s.costs?.[0] && <span className="meta-item">{s.costs[0]}</span>}
+        {otherTargets.length > 0 && (
+          <span className="meta-item also">
+            също за{" "}
+            {otherTargets.map((p) => (
+              <button key={p.id} className="chip" onClick={() => onJump(p.id)}>
+                {p.label} ↓
+              </button>
+            ))}
+          </span>
+        )}
       </div>
-      {s.costs?.length > 0 && (
-        <div className="costs">
-          {s.costs.map((c, j) => (
-            <span key={j}>{c}</span>
-          ))}
+
+      <p className="why">
+        <b>Защо:</b> {s.problem}
+      </p>
+      {s.example && (
+        <div className="example">
+          <span className="example-label">Как може да звучи</span>
+          <p>„{s.example.replace(/^[„"“]+|[“"”]+$/g, "")}“</p>
         </div>
       )}
     </article>
@@ -120,7 +106,6 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
       num={it.num}
       on={!!selected[it.i]}
       onToggle={() => onToggle(it.i)}
-      partLabel={homeId ? partById[homeId]?.label : null}
       otherTargets={it.targets.slice(1).map((id) => partById[id]).filter(Boolean)}
       onJump={(id) => jumpTo(`part-${id}`, id)}
       onHover={(h) => setHoverSug(h ? it.i : null)}
@@ -133,8 +118,8 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
       {general.length > 0 && (
         <div className="row">
           <div className="part general">
-            <div className="part-label">Цялата задача</div>
-            <p className="part-note">Тези предложения засягат задачата като цяло, а не конкретен въпрос.</p>
+            <div className="part-label">Целият материал</div>
+            <p className="part-note">Тези предложения засягат материала като цяло, а не конкретен въпрос.</p>
           </div>
           <div className="notes-col">{general.map((it) => card(it, null))}</div>
         </div>

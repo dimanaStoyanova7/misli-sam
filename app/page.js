@@ -18,9 +18,9 @@ const readLast = () => {
 
 
 const LOADING = {
-  analyze: ["Разчитаме задачата…", "Проверяваме колко лесно би я решил ИИ…", "Подбираме предложения…", "Почти готово…"],
-  finalize: ["Обединяваме избраните промени…", "Пишем новата задача…", "Оценяваме я отново…"],
-  open: ["Отваряме задачата…"],
+  analyze: ["Разчитаме материала…", "Проверяваме колко лесно би я решил ИИ…", "Подбираме предложения…", "Почти готово…"],
+  finalize: ["Обединяваме избраните промени…", "Пишем новата версия…", "Оценяваме я отново…"],
+  open: ["Отваряме материала…"],
 };
 
 // ---------- Small pieces ----------
@@ -190,7 +190,7 @@ function LoginCard({ initialError, onLogin }) {
       <p className="lead">
         {mode === "login"
           ? "Въведете името и ПИН кода на вашия профил."
-          : "Създайте личен профил. В него ще се пазят вашите задачи. Изберете ПИН от 4 до 6 цифри, който ще запомните."}
+          : "Създайте личен профил. В него ще се пазят вашите материали. Изберете ПИН от 4 до 6 цифри, който ще запомните."}
       </p>
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "on" : ""} onClick={() => switchMode("login")}>
@@ -234,7 +234,7 @@ export default function Home() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [text, setText] = useState("");
-  const [ctx, setCtx] = useState({ grade: "", subject: "", setting: "home" });
+  const [ctx, setCtx] = useState({ grade: "", subject: "" });
   const [me, setMe] = useState(null); // null = checking, {loggedIn:false} or {loggedIn:true,...}
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
@@ -258,7 +258,6 @@ export default function Home() {
     setCtx({
       subject: subs.includes(last.subject) ? last.subject : subs[0] || "",
       grade: grs.includes(last.grade) ? last.grade : "",
-      setting: ["home", "class", "both"].includes(last.setting) ? last.setting : "home",
     });
   }
 
@@ -327,10 +326,10 @@ export default function Home() {
     let payload;
     try {
       if (mode === "file") {
-        if (!file) throw new Error("Качете файл със задачата.");
+        if (!file) throw new Error("Качете файл с материала.");
         payload = await prepareFile(file);
       } else {
-        if (text.trim().length < 15) throw new Error("Поставете текста на задачата.");
+        if (text.trim().length < 15) throw new Error("Поставете текста на материала.");
         payload = { kind: "text", text };
       }
     } catch (e) {
@@ -342,11 +341,10 @@ export default function Home() {
       const context = {
         subject: ctx.subject,
         grade: ctx.grade ? `${ctx.grade} клас` : "",
-        setting: ctx.setting,
         stages: settings?.stages || [],
       };
       try {
-        localStorage.setItem(LAST_KEY, JSON.stringify({ subject: ctx.subject, grade: ctx.grade, setting: ctx.setting }));
+        localStorage.setItem(LAST_KEY, JSON.stringify({ subject: ctx.subject, grade: ctx.grade }));
       } catch {}
       const data = await post("/api/analyze", { ...payload, context });
       setAnalysis(data);
@@ -392,10 +390,10 @@ export default function Home() {
         setMe({ loggedIn: false, error: data.error });
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Задачата не можа да бъде отворена.");
+      if (!res.ok) throw new Error(data.error || "Материалът не можа да бъде отворен.");
       setAnalysis(data.analysis);
       setAssignmentId(data.id);
-      setCtx({ grade: "", subject: "", setting: "home", ...(data.context || {}) });
+      setCtx({ grade: "", subject: "", ...(data.context || {}) });
       setSelected(data.analysis.suggestions.map((_, i) => (data.selected ? Boolean(data.selected[i]) : true)));
       setFinal(data.final);
       setCompareTab("after");
@@ -436,8 +434,8 @@ export default function Home() {
         </button>
         {me?.loggedIn && me.settings && (
           <nav className="nav">
-            <button className={view === "work" ? "on" : ""} onClick={newAssignment}>Нова задача</button>
-            <button className={view === "history" ? "on" : ""} onClick={() => { setError(""); setView("history"); }}>Моите задачи</button>
+            <button className={view === "work" ? "on" : ""} onClick={newAssignment}>Нов материал</button>
+            <button className={view === "history" ? "on" : ""} onClick={() => { setError(""); setView("history"); }}>Моите материали</button>
             <button className={view === "settings" ? "on" : ""} onClick={() => setView("settings")}>Настройки</button>
           </nav>
         )}
@@ -488,9 +486,9 @@ export default function Home() {
         ) : step === "input" ? (
           <section className="upload">
             <div className="hero-text">
-              <span className="eyebrow">Нова задача</span>
-              <h1>Направете задачата<br />по-трудна за ИИ</h1>
-              <p className="lead">Качете задача като PDF или снимка, или поставете текста. Ще видите колко лесно ученик може да я реши с ИИ и конкретни предложения как да я промените.</p>
+              <span className="eyebrow">Нов материал</span>
+              <h1>Направете материала<br />по-труден за ИИ</h1>
+              <p className="lead">Качете задание, тест или работен лист като PDF или снимка, или поставете текста. Ще видите колко лесно ученик може да го реши с ИИ и конкретни предложения как да го промените.</p>
             </div>
             <div className="card">
 
@@ -524,7 +522,7 @@ export default function Home() {
                 <input ref={inputRef} type="file" accept="application/pdf,image/*" hidden onChange={(e) => pickFile(e.target.files?.[0])} />
                 {file ? (
                   <div className="file-chosen">
-                    {preview ? <img src={preview} alt="Преглед на задачата" /> : <div className="pdf-badge">PDF</div>}
+                    {preview ? <img src={preview} alt="Преглед на материала" /> : <div className="pdf-badge">PDF</div>}
                     <div>
                       <strong>{file.name}</strong>
                       <small>{(file.size / 1024 / 1024).toFixed(1)} MB · натиснете, за да смените</small>
@@ -543,7 +541,7 @@ export default function Home() {
                 className="paste"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Поставете текста на задачата тук…"
+                placeholder="Поставете текста на материала тук…"
                 rows={9}
               />
             )}
@@ -581,20 +579,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <div className="ctx-group">
-                <span className="ctx-label">Къде се изпълнява</span>
-                <div className="tabs segmented">
-                  {[
-                    ["home", "У дома"],
-                    ["class", "В клас"],
-                    ["both", "И двете"],
-                  ].map(([v, label]) => (
-                    <button key={v} type="button" className={ctx.setting === v ? "on" : ""} aria-pressed={ctx.setting === v} onClick={() => setCtx({ ...ctx, setting: v })}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
             {subjects.length === 1 && (
               <p className="hint ctx-note">
@@ -606,9 +590,9 @@ export default function Home() {
             {error && <p className="error" role="alert">{error}</p>}
 
             <button className="primary big" onClick={analyze}>
-              Анализирай задачата →
+              Анализирай материала →
             </button>
-            <p className="privacy">Моля, не качвайте задачи с имена или лични данни на ученици.</p>
+            <p className="privacy">Моля, не качвайте материали с имена или лични данни на ученици.</p>
             </div>
           </section>
         ) : step === "results" && analysis ? (
@@ -616,9 +600,8 @@ export default function Home() {
             <div className="hero">
               <div className="hero-text">
                 {(ctx.grade || ctx.subject) && <span className="eyebrow">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(" · ")}</span>}
-                <h1>{analysis.title || "Анализ на задачата"}</h1>
-                <p className="lead">{analysis.summary}</p>
-                <p className="reason">{analysis.score_reason}</p>
+                <h1>{analysis.title || "Анализ на материала"}</h1>
+                <p className="lead">{analysis.score_reason}</p>
               </div>
               <div className="tiles">
                 <ScoreTile label="Лесно за ИИ" value={analysis.ai_score_before} />
@@ -652,9 +635,9 @@ export default function Home() {
                 предложения избрани
               </span>
               <span className="dock-btns">
-                <button className="ghost" onClick={restart}>Нова задача</button>
+                <button className="ghost" onClick={restart}>Нов материал</button>
                 <button className="primary" onClick={finalize} disabled={!chosenCount}>
-                  Създай новата задача →
+                  Създай новата версия →
                 </button>
               </span>
             </div>
@@ -663,7 +646,7 @@ export default function Home() {
           <section>
             <div className="hero">
               <div className="hero-text">
-                <span className="eyebrow">✓ Запазено в „Моите задачи“</span>
+                <span className="eyebrow">✓ Запазено в „Моите материали“</span>
                 <h1>{final.title}</h1>
                 <p className="lead">{final.score_reason}</p>
               </div>
@@ -723,7 +706,7 @@ export default function Home() {
             </div>
             <p className="hint center">За PDF изберете „Запази като PDF“ в прозореца за печат.</p>
             <div className="center">
-              <button className="link" onClick={restart}>Анализирай друга задача</button>
+              <button className="link" onClick={restart}>Анализирай друг материал</button>
             </div>
           </section>
         ) : null}

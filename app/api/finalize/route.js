@@ -21,7 +21,7 @@ export async function POST(req) {
   }
 
   const id = Number.parseInt(body?.assignmentId, 10);
-  if (!Number.isFinite(id)) return json({ error: "Липсва задачата." }, 400);
+  if (!Number.isFinite(id)) return json({ error: "Липсва материалът." }, 400);
 
   let row;
   try {
@@ -29,7 +29,7 @@ export async function POST(req) {
   } catch (err) {
     return finish(dbErrorResponse(err), session);
   }
-  if (!row) return json({ error: "Задачата не е намерена." }, 404);
+  if (!row) return json({ error: "Материалът не е намерен." }, 404);
 
   const { analysis, context } = row;
   const suggestions = analysis.suggestions || [];
@@ -41,12 +41,12 @@ export async function POST(req) {
   const labelOf = Object.fromEntries((analysis.parts || []).map((p) => [p.id, p.label]));
   const chosenText = chosen
     .map((s, i) => {
-      const where = s.targets?.length ? ` (за: ${s.targets.map((t) => labelOf[t] || t).join(", ")})` : " (за цялата задача)";
+      const where = s.targets?.length ? ` (за: ${s.targets.map((t) => labelOf[t] || t).join(", ")})` : " (за целия материал)";
       return `${i + 1}. ${s.title}${where}\n   Промяна: ${s.change}\n   Пример: ${s.example}`;
     })
     .join("\n\n");
 
-  const text = `ОРИГИНАЛНА ЗАДАЧА (по части):
+  const text = `ОРИГИНАЛЕН МАТЕРИАЛ (по части):
 """
 ${original.slice(0, 20000)}
 """
@@ -59,7 +59,7 @@ ${chosenText}
 
 Оценка преди промените: ${analysis.ai_score_before ?? "неизвестна"}/10.
 
-Напиши една цялостна, преработена задача, която обединява избраните промени естествено, запазва учебните цели и е готова за раздаване на учениците. Частите без избрани промени запази почти без промяна. След това оцени по същата скала колко лесно е да се изпълни с ИИ сега.`;
+Напиши една цялостна, преработена версия на материала, която обединява избраните промени естествено, запазва учебните цели, нивото и обема и е готова за раздаване на учениците. Частите без избрани промени запази почти без промяна. След това оцени по същата скала колко лесно е да се изпълни с ИИ сега.`;
 
   try {
     const result = await callTool({ content: [{ type: "text", text }], tool: FINALIZE_TOOL, maxTokens: 6000 });

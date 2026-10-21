@@ -49,7 +49,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
     try {
       const r = await fetch(`/api/assignments/${item.id}`, { method: "DELETE" });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "Задачата не можа да бъде изтрита.");
+      if (!r.ok) throw new Error(d.error || "Материалът не можа да бъде изтрит.");
       setItems((list) => list.filter((x) => x.id !== item.id));
     } catch (e) {
       setError(e.message);
@@ -65,10 +65,10 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
     <section className="history">
       <div className="history-head">
         <div>
-          <h1>Моите задачи</h1>
-          <p className="lead">Всяка анализирана задача се запазва тук. Отворете я, за да изтеглите новата версия или да изберете други предложения.</p>
+          <h1>Моите материали</h1>
+          <p className="lead">Всеки анализиран материал се запазва тук. Отворете го, за да изтеглите новата версия или да изберете други предложения.</p>
         </div>
-        <button className="primary" onClick={onNew}>+ Нова задача</button>
+        <button className="primary" onClick={onNew}>+ Нов материал</button>
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -77,9 +77,9 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
         <div className="loading"><div className="spinner" /></div>
       ) : items && items.length === 0 ? (
         <div className="card empty">
-          <h2>Все още нямате запазени задачи</h2>
-          <p className="hint">Анализирайте първата си задача и тя ще се появи тук.</p>
-          <button className="primary" onClick={onNew}>Анализирай задача</button>
+          <h2>Все още нямате запазени материали</h2>
+          <p className="hint">Анализирайте първия си материал и той ще се появи тук.</p>
+          <button className="primary" onClick={onNew}>Анализирай материал</button>
         </div>
       ) : items ? (
         <>
@@ -107,7 +107,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
               </li>
             ))}
           </ul>
-          {shown.length === 0 && <p className="hint center">Няма задачи, които да отговарят на търсенето.</p>}
+          {shown.length === 0 && <p className="hint center">Няма материали, които да отговарят на търсенето.</p>}
         </>
       ) : null}
     </section>

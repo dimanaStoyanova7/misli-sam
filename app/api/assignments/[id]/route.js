@@ -9,7 +9,7 @@ async function withSession(req, params, fn) {
   const auth = await requireSession(req);
   if (auth.response) return auth.response;
   const id = Number.parseInt((await params).id, 10);
-  if (!Number.isFinite(id)) return finish(NextResponse.json({ error: "Невалидна задача." }, { status: 400 }), auth.session);
+  if (!Number.isFinite(id)) return finish(NextResponse.json({ error: "Невалиден материал." }, { status: 400 }), auth.session);
   try {
     return finish(await fn(auth.session, id), auth.session);
   } catch (err) {
@@ -20,7 +20,7 @@ async function withSession(req, params, fn) {
 export async function GET(req, { params }) {
   return withSession(req, params, async (session, id) => {
     const row = await getAssignment(session, id);
-    if (!row) return NextResponse.json({ error: "Задачата не е намерена." }, { status: 404 });
+    if (!row) return NextResponse.json({ error: "Материалът не е намерен." }, { status: 404 });
     return NextResponse.json({
       id: row.id,
       title: row.title,
@@ -37,7 +37,7 @@ export async function GET(req, { params }) {
 export async function DELETE(req, { params }) {
   return withSession(req, params, async (session, id) => {
     const ok = await deleteAssignment(session, id);
-    if (!ok) return NextResponse.json({ error: "Задачата не е намерена." }, { status: 404 });
+    if (!ok) return NextResponse.json({ error: "Материалът не е намерен." }, { status: 404 });
     return NextResponse.json({ ok: true });
   });
 }

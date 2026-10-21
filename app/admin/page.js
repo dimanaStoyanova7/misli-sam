@@ -131,7 +131,7 @@ export default function Admin() {
   }
 
   function removeTeacher(t) {
-    if (!window.confirm(`Изтриване на профила на ${t.name} заедно с всички запазени задачи? Това не може да се отмени.`)) return;
+    if (!window.confirm(`Изтриване на профила на ${t.name} заедно с всички запазени материали? Това не може да се отмени.`)) return;
     run(async () => {
       const d = await teachersApi("DELETE", null, `?id=${t.id}`);
       await api("GET");
@@ -262,7 +262,7 @@ export default function Admin() {
                                 <th>Учител</th>
                                 <th>Последен вход</th>
                                 <th>Анализи (месец)</th>
-                                <th>Запазени задачи</th>
+                                <th>Запазени материали</th>
                                 <th />
                               </tr>
                             </thead>
