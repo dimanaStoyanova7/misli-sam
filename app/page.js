@@ -47,25 +47,30 @@ function scoreTone(n) {
   return "low";
 }
 
-function ScoreMeter({ label, value, reason }) {
+const RISK_WORD = { high: "висок риск", mid: "среден риск", low: "нисък риск" };
+
+function ScoreTile({ label, value }) {
   const tone = scoreTone(value);
-  const words = { high: "лесно за ИИ", mid: "отчасти лесно", low: "трудно за ИИ" };
   return (
-    <div className={`score score-${tone}`}>
-      <div className="score-top">
-        <span className="score-label">{label}</span>
-        <span className="score-num">
-          {value}<small>/10</small>
-        </span>
+    <div className={`tile tone-${tone}`}>
+      <div className="tile-k">{label}</div>
+      <div className="tile-v">
+        {value}
+        <small>/10</small>
       </div>
-      <div className="score-bar" role="img" aria-label={`${value} от 10`}>
-        <span style={{ width: `${value * 10}%` }} />
-      </div>
-      <div className="score-word">{words[tone]}</div>
-      {reason && <p className="score-reason">{reason}</p>}
+      <div className="tile-s">{RISK_WORD[tone]}</div>
     </div>
   );
 }
+
+const gradeLabel = (g) => (!g ? "" : /клас/.test(g) ? g : `${g} клас`);
+const initials = (name = "") =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("") || "?";
 
 function Loading({ kind }) {
   const [i, setI] = useState(0);
@@ -79,21 +84,6 @@ function Loading({ kind }) {
       <p>{LOADING[kind][i]}</p>
       {kind !== "open" && <small>Обикновено отнема 20–40 секунди.</small>}
     </div>
-  );
-}
-
-function Steps({ step }) {
-  const items = ["Задача", "Предложения", "Нова задача"];
-  const idx = { input: 0, results: 1, final: 2 }[step];
-  return (
-    <ol className="steps">
-      {items.map((t, i) => (
-        <li key={t} className={i === idx ? "on" : i < idx ? "done" : ""}>
-          <span>{i + 1}</span>
-          {t}
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -440,39 +430,33 @@ export default function Home() {
   return (
     <div className={`shell ${view === "work" && (step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
-        <div className="brand">
-          <span className="mark">М</span>
-          <div>
-            <strong>Мисли сам</strong>
-            <small>задачи, които карат учениците да мислят</small>
+        <button className="brand" onClick={() => me?.loggedIn && me.settings && newAssignment()} aria-label="Мисли сам – начало">
+          <span className="logo">М</span>
+          <span className="brand-name">Мисли сам</span>
+        </button>
+        {me?.loggedIn && me.settings && (
+          <nav className="nav">
+            <button className={view === "work" ? "on" : ""} onClick={newAssignment}>Нова задача</button>
+            <button className={view === "history" ? "on" : ""} onClick={() => { setError(""); setView("history"); }}>Моите задачи</button>
+            <button className={view === "settings" ? "on" : ""} onClick={() => setView("settings")}>Настройки</button>
+          </nav>
+        )}
+        {me?.loggedIn && (
+          <div className="account-box">
+            <span className="who" title={`${me.teacher || ""} · ${me.school || ""}`}>
+              <span className="avatar">{initials(me.teacher)}</span>
+              <span className="who-text">
+                <strong>{me.teacher}</strong>
+                <small>
+                  {me.school}
+                  {me.limit != null && me.used != null ? ` · ${me.used}/${me.limit} този месец` : ""}
+                </small>
+              </span>
+            </span>
+            <button className="logout" onClick={signOut}>Изход</button>
           </div>
-        </div>
-        {me?.loggedIn && me.settings && view === "work" && <Steps step={step} />}
+        )}
       </header>
-
-      {me?.loggedIn && (
-        <div className="account">
-          <span>
-            {me.school}
-            {me.teacher ? ` · ${me.teacher}` : ""}
-            {me.limit != null && me.used != null ? ` · ${me.used} от ${me.limit} анализа този месец` : ""}
-          </span>
-          <span className="account-actions">
-            {me.settings && (<>
-            {view === "work" && step !== "input" ? (
-              <button className="link" onClick={newAssignment}>+ Нова задача</button>
-            ) : null}
-            {view !== "history" && (
-              <button className="link" onClick={() => { setError(""); setView("history"); }}>Моите задачи</button>
-            )}
-            {view !== "settings" && (
-              <button className="link" onClick={() => setView("settings")}>Настройки</button>
-            )}
-            </>)}
-            <button className="link" onClick={signOut}>Изход</button>
-          </span>
-        </div>
-      )}
 
       <main>
         {me === null ? (
@@ -502,9 +486,13 @@ export default function Home() {
         ) : view === "history" ? (
           <History onOpen={openSaved} onNew={newAssignment} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
         ) : step === "input" ? (
-          <section className="card">
-            <h1>Направете задачата по-трудна за решаване с ИИ</h1>
-            <p className="lead">Качете задача като PDF или снимка, или поставете текста. Ще получите оценка колко лесно ученик може да я реши с ИИ и конкретни предложения как да я промените, с обяснение какъв проблем решава всяко.</p>
+          <section className="upload">
+            <div className="hero-text">
+              <span className="eyebrow">Нова задача</span>
+              <h1>Направете задачата<br />по-трудна за ИИ</h1>
+              <p className="lead">Качете задача като PDF или снимка, или поставете текста. Ще видите колко лесно ученик може да я реши с ИИ и конкретни предложения как да я промените.</p>
+            </div>
+            <div className="card">
 
             <div className="tabs" role="tablist">
               <button role="tab" aria-selected={mode === "file"} className={mode === "file" ? "on" : ""} onClick={() => setMode("file")}>
@@ -618,26 +606,34 @@ export default function Home() {
             {error && <p className="error" role="alert">{error}</p>}
 
             <button className="primary big" onClick={analyze}>
-              Анализирай задачата
+              Анализирай задачата →
             </button>
             <p className="privacy">Моля, не качвайте задачи с имена или лични данни на ученици.</p>
+            </div>
           </section>
         ) : step === "results" && analysis ? (
           <section>
-            <div className="card">
-              <div className="results-head">
-                <div>
-                  <h1>Анализ на задачата</h1>
-                  <p className="lead">{analysis.summary}</p>
+            <div className="hero">
+              <div className="hero-text">
+                {(ctx.grade || ctx.subject) && <span className="eyebrow">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(" · ")}</span>}
+                <h1>{analysis.title || "Анализ на задачата"}</h1>
+                <p className="lead">{analysis.summary}</p>
+                <p className="reason">{analysis.score_reason}</p>
+              </div>
+              <div className="tiles">
+                <ScoreTile label="Лесно за ИИ" value={analysis.ai_score_before} />
+                <div className="tile tone-violet">
+                  <div className="tile-k">Предложения</div>
+                  <div className="tile-v">{analysis.suggestions.length}</div>
+                  <div className="tile-s">{chosenCount} избрани</div>
                 </div>
-                <ScoreMeter label="Сега" value={analysis.ai_score_before} reason={analysis.score_reason} />
               </div>
             </div>
 
-            <h2 className="section-title">
-              Предложения до всяка част <span>{chosenCount} от {analysis.suggestions.length} избрани</span>
-            </h2>
-            <p className="hint board-hint">Номерата до всяка част показват кои предложения се отнасят за нея. Задръжте курсора върху предложение, за да видите частта му.</p>
+            <div className="section-bar">
+              <h2>Предложения до всяка част</h2>
+              <span className="hint">Задръжте курсора върху предложение, за да видите частта му</span>
+            </div>
 
             <Board
               parts={analysis.parts}
@@ -648,20 +644,34 @@ export default function Home() {
 
             {error && <p className="error" role="alert">{error}</p>}
 
-            <div className="actions sticky">
-              <button className="ghost" onClick={restart}>Нова задача</button>
-              <button className="primary" onClick={finalize} disabled={!chosenCount}>
-                Създай новата задача ({chosenCount})
-              </button>
+            <div className="dock">
+              <span className="dock-text">
+                <b>
+                  {chosenCount} от {analysis.suggestions.length}
+                </b>{" "}
+                предложения избрани
+              </span>
+              <span className="dock-btns">
+                <button className="ghost" onClick={restart}>Нова задача</button>
+                <button className="primary" onClick={finalize} disabled={!chosenCount}>
+                  Създай новата задача →
+                </button>
+              </span>
             </div>
           </section>
         ) : step === "final" && final ? (
           <section>
-            <div className="compare card">
-              <ScoreMeter label="Преди" value={analysis.ai_score_before} />
-              <div className="arrow">→</div>
-              <ScoreMeter label="След" value={final.ai_score_after} />
-              <p className="compare-reason">{final.score_reason}</p>
+            <div className="hero">
+              <div className="hero-text">
+                <span className="eyebrow">✓ Запазено в „Моите задачи“</span>
+                <h1>{final.title}</h1>
+                <p className="lead">{final.score_reason}</p>
+              </div>
+              <div className="tiles">
+                <ScoreTile label="Преди" value={analysis.ai_score_before} />
+                <div className="tiles-arrow">→</div>
+                <ScoreTile label="След" value={final.ai_score_after} />
+              </div>
             </div>
 
             <div className="tabs compare-tabs" role="tablist">
@@ -701,7 +711,7 @@ export default function Home() {
 
             {error && <p className="error" role="alert">{error}</p>}
 
-            <div className="actions">
+            <div className="actions final-actions">
               <button className="ghost" onClick={() => setStep("results")}>← Промени избора</button>
               <button className="ghost" onClick={() => window.print()}>Печат / PDF</button>
               <button
@@ -712,7 +722,6 @@ export default function Home() {
               </button>
             </div>
             <p className="hint center">За PDF изберете „Запази като PDF“ в прозореца за печат.</p>
-            <p className="hint center saved-note">✓ Запазено в „Моите задачи“.</p>
             <div className="center">
               <button className="link" onClick={restart}>Анализирай друга задача</button>
             </div>

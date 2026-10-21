@@ -173,11 +173,11 @@ export default function Admin() {
     <div className="shell admin" style={{ maxWidth: 1080 }}>
       <header className="top">
         <div className="brand">
-          <span className="mark">М</span>
-          <div>
-            <strong>Мисли сам · Администрация</strong>
+          <span className="logo">М</span>
+          <span className="who-text">
+            <span className="brand-name">Мисли сам · Администрация</span>
             <small>{schools.length} училища · {totalMonth} анализа този месец</small>
-          </div>
+          </span>
         </div>
         <a className="link" href="/">← Към приложението</a>
       </header>

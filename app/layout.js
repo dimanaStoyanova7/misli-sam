@@ -1,3 +1,11 @@
+// Onest is a typeface designed with Cyrillic in mind; served from the app itself.
+import "@fontsource/onest/cyrillic-400.css";
+import "@fontsource/onest/cyrillic-500.css";
+import "@fontsource/onest/cyrillic-600.css";
+import "@fontsource/onest/cyrillic-800.css";
+import "@fontsource/onest/latin-400.css";
+import "@fontsource/onest/latin-600.css";
+import "@fontsource/onest/latin-800.css";
 import "./globals.css";
 
 export const metadata = {
@@ -5,19 +13,11 @@ export const metadata = {
   description: "Качете задача и получете конкретни предложения как да я направите по-устойчива на използване на изкуствен интелект.",
 };
 
-export const viewport = { width: "device-width", initialScale: 1, themeColor: "#f6f2ea" };
+export const viewport = { width: "device-width", initialScale: 1, themeColor: "#f3f1fa" };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="bg">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap&subset=cyrillic"
-          rel="stylesheet"
-        />
-      </head>
       <body>{children}</body>
     </html>
   );
