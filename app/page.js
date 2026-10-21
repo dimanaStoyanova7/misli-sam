@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
+import Board from "./Board";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
@@ -148,7 +149,6 @@ export default function Home() {
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [selected, setSelected] = useState([]);
-  const [showOriginal, setShowOriginal] = useState(false);
   const [final, setFinal] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
@@ -227,7 +227,6 @@ export default function Home() {
       setAnalysis(data);
       setSelected(data.suggestions.map(() => true));
       setFinal(null);
-      setShowOriginal(false);
       setStep("results");
       refreshUsage();
     } catch (e) {
@@ -274,7 +273,7 @@ export default function Home() {
   const chosenCount = selected.filter(Boolean).length;
 
   return (
-    <div className="shell" ref={topRef}>
+    <div className={`shell ${step === "results" && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
         <div className="brand">
           <span className="mark">М</span>
@@ -412,61 +411,22 @@ export default function Home() {
                 <div>
                   <h1>Анализ на задачата</h1>
                   <p className="lead">{analysis.summary}</p>
-                  <button className="link" onClick={() => setShowOriginal((s) => !s)}>
-                    {showOriginal ? "Скрий разчетения текст" : "Покажи разчетения текст"}
-                  </button>
                 </div>
                 <ScoreMeter label="Сега" value={analysis.ai_score_before} reason={analysis.score_reason} />
               </div>
-              {showOriginal && <pre className="original">{analysis.extracted_text}</pre>}
             </div>
 
             <h2 className="section-title">
-              Предложения <span>{chosenCount} от {analysis.suggestions.length} избрани</span>
+              Предложения до всяка част <span>{chosenCount} от {analysis.suggestions.length} избрани</span>
             </h2>
+            <p className="hint board-hint">Номерата до всяка част показват кои предложения се отнасят за нея. Задръжте курсора върху предложение, за да видите частта му.</p>
 
-            <div className="sugs">
-              {analysis.suggestions.map((s, i) => (
-                <article key={i} className={`sug ${selected[i] ? "chosen" : "off"}`}>
-                  <header>
-                    <div>
-                      <span className={`impact impact-${s.impact === "висок" ? "high" : s.impact === "среден" ? "mid" : "low"}`}>
-                        {s.impact} ефект
-                      </span>
-                      <h3>{s.title}</h3>
-                    </div>
-                    <button
-                      className={`toggle ${selected[i] ? "on" : ""}`}
-                      aria-pressed={!!selected[i]}
-                      onClick={() => setSelected((arr) => arr.map((v, j) => (j === i ? !v : v)))}
-                    >
-                      {selected[i] ? "✓ Включено" : "Включи"}
-                    </button>
-                  </header>
-                  <div className="sug-body">
-                    <div className="sug-row">
-                      <h4>Какво да промените</h4>
-                      <p>{s.change}</p>
-                    </div>
-                    <div className="sug-row problem">
-                      <h4>Какъв проблем решава</h4>
-                      <p>{s.problem}</p>
-                    </div>
-                    <div className="sug-row example">
-                      <h4>Как може да звучи</h4>
-                      <p>{s.example}</p>
-                    </div>
-                  </div>
-                  {s.costs?.length > 0 && (
-                    <div className="costs">
-                      {s.costs.map((c, j) => (
-                        <span key={j}>{c}</span>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
+            <Board
+              parts={analysis.parts}
+              suggestions={analysis.suggestions}
+              selected={selected}
+              onToggle={(i) => setSelected((arr) => arr.map((v, j) => (j === i ? !v : v)))}
+            />
 
             {error && <p className="error" role="alert">{error}</p>}
 

@@ -1,4 +1,4 @@
-import { ANALYZE_TOOL, callTool, describeContext, errorResponse, json as plainJson } from "@/lib/ai";
+import { ANALYZE_TOOL, callTool, describeContext, errorResponse, json as plainJson, normalizeAnalysis } from "@/lib/ai";
 import { dbErrorResponse, finish, overLimit, recordUsage, requireSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -53,7 +53,7 @@ export async function POST(req) {
 
   content.push({
     type: "text",
-    text: `КОНТЕКСТ:\n${describeContext(context)}\n\nАнализирай задачата: оцени колко лесно може да бъде изпълнена с ИИ и дай 3–6 конкретни предложения как да стане по-устойчива, подредени от най-полезното. Всяко предложение трябва ясно да казва какъв проблем решава.`,
+    text: `КОНТЕКСТ:\n${describeContext(context)}\n\nАнализирай задачата: оцени колко лесно може да бъде изпълнена с ИИ и дай 3–8 конкретни предложения как да стане по-устойчива, подредени от най-полезното. Всяко предложение трябва ясно да казва какъв проблем решава. Първо раздели задачата на частите ѝ (parts), после свържи всяко предложение с конкретните части, за които се отнася (targets). Предпочитай конкретни предложения за определени въпроси пред общи съвети.`,
   });
 
   try {
@@ -62,7 +62,7 @@ export async function POST(req) {
       return json({ error: "Не успяхме да разпознаем задача във файла. Опитайте с по-ясна снимка или поставете текста." }, 422);
     }
     await recordUsage(session, "analyze");
-    return json(result);
+    return json(normalizeAnalysis(result));
   } catch (err) {
     return finish(errorResponse(err), session);
   }
