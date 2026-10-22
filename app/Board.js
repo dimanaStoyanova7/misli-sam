@@ -183,3 +183,29 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
     </div>
   );
 }
+
+// Advice on how to run the work (in class, by hand…). Not a suggestion: no toggle,
+// and it never goes into the new version.
+export function Tips({ tips = [] }) {
+  if (!tips.length) return null;
+  return (
+
+        <aside className="tips" aria-label="Съвети за провеждане">
+          <div className="tips-head">
+            <span className="tips-icon" aria-hidden="true">💡</span>
+            <div>
+              <h3>Съвет за провеждане</h3>
+              <p>Не променя текста на материала и не влиза в новата версия.</p>
+            </div>
+          </div>
+          <ul>
+            {tips.map((t, i) => (
+              <li key={i}>
+                <strong>{t.title}</strong>
+                {t.why && <span> – {t.why}</span>}
+              </li>
+            ))}
+          </ul>
+        </aside>
+  );
+}

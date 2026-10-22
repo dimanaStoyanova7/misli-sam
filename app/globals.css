@@ -237,6 +237,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--v
 .ref-arrow { margin-left: auto; color: var(--violet); font-weight: 800; }
 .no-sug { margin: 16px 0 0; font-size: 13px; color: var(--faint); }
 
+/* delivery tips: advice, not part of the new version */
+.tips { margin-bottom: 30px; background: transparent; border: 1.5px dashed var(--amber-ink); border-radius: var(--radius); padding: 18px 22px; }
+.tips-head { display: flex; gap: 12px; align-items: flex-start; }
+.tips-icon { font-size: 22px; line-height: 1; margin-top: 2px; }
+.tips h3 { margin: 0; font-size: 17px; color: var(--amber-ink); }
+.tips-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.tips ul { margin: 12px 0 0; padding-left: 34px; display: grid; gap: 6px; }
+.tips li strong { font-weight: 600; }
+.tips li span { color: var(--muted); }
+
 /* floating action bar */
 .dock {
   position: sticky; bottom: 16px; z-index: 5; margin-top: 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px;

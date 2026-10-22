@@ -3,7 +3,7 @@
 import Logo from "./Logo";
 import { useEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
-import Board from "./Board";
+import Board, { Tips } from "./Board";
 import History from "./History";
 import Setup from "./Setup";
 import { gradeChoices, subjectChoices } from "@/lib/subjects";
@@ -613,6 +613,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            <Tips tips={analysis.delivery_tips || []} />
 
             <div className="section-bar">
               <h2>Предложения до всяка част</h2>
