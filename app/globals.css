@@ -169,10 +169,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .handover-actions .privacy { margin: 0; }
 
 /* ---------- Results: the marked-up sheet ---------- */
-.review-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 6px 0 22px; }
+/* header row: title on the left, the sticky note on the right; nothing overlaps the sheet */
+.review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; margin: 6px 0 28px; }
 .review-head .context { font-size: 15px; color: var(--ink-2); margin-bottom: 4px; }
 .review-head h1 { font-size: 28px; }
-.review-tip { width: 300px; flex-shrink: 0; margin-bottom: -46px; position: relative; z-index: 6; transform: rotate(1.2deg); }
+.review-tip { transform: rotate(1.2deg); }
+/* the sticky note is stuck to the top of the paper's margin; notes flow below it */
+.margin-tip { position: relative; z-index: 3; padding: 26px 22px 0; }
+.tips-above { display: none; }
 .review-tip p { font-size: 15px; line-height: 1.5; }
 .review-tip p + p { margin-top: 6px; }
 
@@ -189,7 +193,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .grade::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--red); border-radius: 52% 46% 50% 48% / 46% 54% 48% 52%; }
 .grade b { font-size: 44px; font-weight: 700; display: block; }
 .grade small { font-size: 19px; display: block; margin-top: 2px; white-space: nowrap; }
-.grade-inline { display: none; }
 .grade.low { color: var(--blue); }
 .grade.low::before { border-color: var(--blue); }
 
@@ -367,13 +370,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   .sheet::before { left: 34px; }
   .sheet-grid { grid-template-columns: 1fr; }
   .sheet-margin, .connectors { display: none; }
-  .grade-inline { display: grid; }
   .sheet-text { padding: 24px 22px 40px var(--text-left); }
   .margin-nums { display: none; }
   .passage.bracketed::before { left: -14px; }
   .inline-notes { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 0; padding: 8px 0 8px 14px; border-left: 2px solid var(--red); white-space: normal; }
   .review-head { flex-direction: column; align-items: stretch; }
-  .review-tip { width: auto; margin-bottom: 0; transform: none; }
+  .review-tip { transform: none; }
+  .margin-tip { display: none; }
+  .tips-above { display: block; margin-bottom: 20px; }
   .handover { grid-template-columns: 1fr; }
   .handover-side { padding-top: 18px; }
   .handover-side .sticky { transform: none; }

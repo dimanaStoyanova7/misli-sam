@@ -12,7 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 const IMPACT = { висок: "голям", среден: "среден", нисък: "малък" };
 const NARROW = "(max-width: 960px)";
 const GAP = 16;          // space between notes in the margin
-const MARGIN_TOP = 128;  // keep the corner mark clear
+const MARGIN_TOP = 24;   // first note starts no higher than this (the margin holds only notes)
 
 function scoreTone(n) {
   if (n >= 7) return "high";
@@ -99,7 +99,7 @@ function segmentsFor(text, items) {
   return out;
 }
 
-export default function Board({ parts, suggestions, selected, onToggle, verdict, score }) {
+export default function Board({ parts, suggestions, selected, onToggle, verdict, score, tips = [] }) {
   const [openId, setOpenId] = useState(null);
   const [hoverId, setHoverId] = useState(null);
   const [flash, setFlash] = useState(null);
@@ -107,6 +107,8 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
   const sheetRef = useRef(null);
   const marginRef = useRef(null);
   const verdictRef = useRef(null);
+  const textRef = useRef(null);
+  const tipsRef = useRef(null);
   const anchorRefs = useRef({});
   const noteRefs = useRef({});
   const flashTimer = useRef(null);
@@ -151,6 +153,11 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
       if (!sheet || !margin || margin.offsetWidth === 0) return;
       const sRect = sheet.getBoundingClientRect();
       const mRect = margin.getBoundingClientRect();
+      // Right edge of the writing: connectors run along the line to here, then drop in the gutter.
+      const tRect = textRef.current.getBoundingClientRect();
+      const gutterX = tRect.right - sRect.left - 18;
+      // The sticky note at the top of the margin: notes start below it.
+      const tipsBottom = tipsRef.current ? tipsRef.current.getBoundingClientRect().bottom - mRect.top + 10 : 0;
       const anchors = ordered
         .map((it) => {
           const el = it.home === null ? verdictRef.current : anchorRefs.current[it.i];
@@ -163,9 +170,11 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
           return {
             it,
             top: first.top - mRect.top,
+            // underline: start just below the end of the underlined words, in the space between ruled lines
+            // whole passage / whole material: start at the top right of the block
             from: isQuote
-              ? { x: last.right - sRect.left + 2, y: last.bottom - sRect.top - 3 }
-              : { x: box.right - sRect.left + 6, y: first.top - sRect.top + 16 },
+              ? { x: last.right - sRect.left + 2, y: last.bottom - sRect.top + 4 }
+              : { x: Math.min(box.right - sRect.left + 6, gutterX), y: first.top - sRect.top + 16 },
           };
         })
         .filter(Boolean)
@@ -173,7 +182,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
 
       const tops = {};
       const paths = {};
-      let bottom = MARGIN_TOP - GAP;
+      let bottom = Math.max(MARGIN_TOP, tipsBottom) - GAP;
       for (const a of anchors) {
         const h = noteRefs.current[a.it.i]?.offsetHeight || 60;
         const y = Math.max(a.top - 2, bottom + GAP);
@@ -182,8 +191,10 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
         const x2 = mRect.left - sRect.left + 18;
         const y2 = mRect.top - sRect.top + y + 15;
         const { x: x1, y: y1 } = a.from;
-        const bend = Math.max(24, (x2 - x1) / 2);
-        paths[a.it.i] = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${(x1 + bend).toFixed(1)} ${y1.toFixed(1)}, ${(x2 - bend).toFixed(1)} ${y2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+        const xg = Math.max(x1 + 4, gutterX);
+        const f = (n) => n.toFixed(1);
+        // along the line, then a soft curve through the gutter into the note
+        paths[a.it.i] = `M ${f(x1)} ${f(y1)} L ${f(xg)} ${f(y1)} C ${f(xg + 26)} ${f(y1)}, ${f(x2 - 26)} ${f(y2)}, ${f(x2)} ${f(y2)}`;
       }
       const next = { tops, paths, height: Math.round(bottom + 48) };
       setLayout((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
@@ -240,10 +251,10 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
   return (
     <div className="paper sheet" ref={sheetRef}>
       <div className="sheet-grid">
-        <div className="sheet-text">
-          <div className="verdict">
-            <p ref={verdictRef}>{verdict}</p>
-            <div className={`grade grade-inline ${scoreTone(score) === "low" ? "low" : ""}`}>
+        <div className="sheet-text" ref={textRef}>
+          <div className="verdict" ref={verdictRef}>
+            <p>{verdict}</p>
+            <div className={`grade ${scoreTone(score) === "low" ? "low" : ""}`} aria-label={`Колко лесно е за ИИ: ${score} от 10`}>
               <span>
                 <b>{score}</b>
                 <small>лесно за ИИ</small>
@@ -321,12 +332,11 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
         </div>
 
         <div className="sheet-margin" ref={marginRef} style={{ minHeight: layout.height || undefined }}>
-          <div className={`grade ${scoreTone(score) === "low" ? "low" : ""}`} style={{ position: "absolute", top: 26, right: 34 }}>
-            <span>
-              <b>{score}</b>
-              <small>лесно за ИИ</small>
-            </span>
-          </div>
+          {tips.length > 0 && (
+            <div className="margin-tip" ref={tipsRef}>
+              <Tips tips={tips} />
+            </div>
+          )}
           {ordered.map((it) => (
             <Note key={`m-${it.i}`} {...noteProps(it, false)} />
           ))}

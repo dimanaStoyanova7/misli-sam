@@ -631,6 +631,10 @@ export default function Home() {
                   Червеното е там, където ученик лесно би дал работата на ИИ. Отворете бележка, за да видите какво предлагам.
                 </p>
               </div>
+            </div>
+
+            {/* on narrow screens the sticky note sits above the sheet; on wide screens it's in the margin */}
+            <div className="tips-above">
               <Tips tips={analysis.delivery_tips || []} />
             </div>
 
@@ -640,6 +644,7 @@ export default function Home() {
               selected={selected}
               verdict={analysis.score_reason}
               score={analysis.ai_score_before}
+              tips={analysis.delivery_tips || []}
               onToggle={(i) => setSelected((arr) => arr.map((v, j) => (j === i ? !v : v)))}
             />
 
