@@ -19,9 +19,9 @@ const readLast = () => {
 
 
 const LOADING = {
-  analyze: ["Разчитаме материала…", "Проверяваме колко лесно би го решил ИИ…", "Подбираме предложения…", "Почти готово…"],
-  finalize: ["Обединяваме избраните промени…", "Пишем новата версия…", "Оценяваме я отново…"],
-  open: ["Отваряме материала…"],
+  analyze: ["Чета материала…", "Подчертавам слабите места…", "Пиша бележките в полето…", "Още малко…"],
+  finalize: ["Преписвам материала начисто…", "Вписвам избраните промени…", "Проверявам го още веднъж…"],
+  open: ["Отварям материала…"],
 };
 
 // ---------- Small pieces ----------
@@ -50,32 +50,6 @@ function scoreTone(n) {
 
 const RISK_WORD = { high: "висок риск", mid: "среден риск", low: "нисък риск" };
 
-// 10-step meter: how easily a student could hand in work done by AI. `from` shows the earlier score faintly.
-function Meter({ label, value, from }) {
-  const tone = scoreTone(value);
-  return (
-    <div className={`meter risk-${tone}`} role="img" aria-label={`${label}: ${value} от 10, ${RISK_WORD[tone]}`}>
-      <div className="meter-k">{label}</div>
-      <div className="meter-v">
-        <strong>{value}</strong>
-        <span className="of">от 10</span>
-        <span className="word">{RISK_WORD[tone]}</span>
-      </div>
-      <div className="meter-bar" aria-hidden="true">
-        {Array.from({ length: 10 }, (_, i) => (
-          <span key={i} className={i < value ? "on" : from && i < from ? "ghost-on" : ""} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const UploadIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 13v2.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13" />
-  </svg>
-);
-
 const gradeLabel = (g) => (!g ? "" : /клас/.test(g) ? g : `${g} клас`);
 const initials = (name = "") =>
   name
@@ -95,7 +69,7 @@ function Loading({ kind }) {
     <div className="loading" role="status">
       <div className="spinner" />
       <p>{LOADING[kind][i]}</p>
-      {kind !== "open" && <small>Обикновено отнема 20–40 секунди.</small>}
+      {kind !== "open" && <small>Обикновено отнема около половин минута.</small>}
     </div>
   );
 }
@@ -179,8 +153,8 @@ function LoginCard({ initialError, onLogin }) {
   if (stage === "code") {
     return (
       <section className="card login">
-        <h1>Добре дошли</h1>
-        <p className="lede">Въведете кода на вашето училище. Ще ви го даде директорът или администраторът.</p>
+        <h1>Здравейте</h1>
+        <p className="lede">Въведете кода на училището си. Ще ви го даде директорът или администраторът.</p>
         <form onSubmit={submitCode}>
           <label>
             Код на училището
@@ -201,8 +175,8 @@ function LoginCard({ initialError, onLogin }) {
       <h1>{school}</h1>
       <p className="lede">
         {mode === "login"
-          ? "Влезте с името и ПИН кода на профила си."
-          : "Създайте личен профил. В него ще се пазят вашите материали. Изберете ПИН от 4 до 6 цифри."}
+          ? "Влезте с името и ПИН кода си."
+          : "Създайте си профил. В него ще пазя материалите, които прегледаме заедно. Изберете ПИН от 4 до 6 цифри."}
       </p>
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "on" : ""} onClick={() => switchMode("login")}>
@@ -242,7 +216,7 @@ function LoginCard({ initialError, onLogin }) {
 
 export default function Home() {
   const [step, setStep] = useState("input");
-  const [mode, setMode] = useState("file");
+  const [mode, setMode] = useState("text");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [text, setText] = useState("");
@@ -253,7 +227,8 @@ export default function Home() {
   const [analysis, setAnalysis] = useState(null);
   const [selected, setSelected] = useState([]);
   const [final, setFinal] = useState(null);
-  const [compareTab, setCompareTab] = useState("after"); // phones only: which version to show
+  const [compareTab, setCompareTab] = useState("after"); // which version the final page shows
+  const [copied, setCopied] = useState(false);
   const [view, setView] = useState("work"); // "work" | "history"
   const [assignmentId, setAssignmentId] = useState(null);
 
@@ -418,6 +393,20 @@ export default function Home() {
     }
   }
 
+  // Plain-text copy of the new version, ready to paste into a document or Shkolo.
+  async function copyHandout() {
+    const body = parseBlocks(final.assignment)
+      .map((b) => (b.type === "list" ? b.items.map((x) => `– ${x}`).join("\n") : b.text))
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(`${final.title}\n\n${body}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Не успях да копирам текста. Изтеглете го за Word.");
+    }
+  }
+
   function newAssignment() {
     restart();
     setView("work");
@@ -425,6 +414,7 @@ export default function Home() {
 
   function restart() {
     setAssignmentId(null);
+    setMode("text");
     applyDefaults();
     setStep("input");
     setAnalysis(null);
@@ -496,139 +486,160 @@ export default function Home() {
         ) : view === "history" ? (
           <History onOpen={openSaved} onNew={newAssignment} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
         ) : step === "input" ? (
-          <section className="upload">
-            <div className="page-head">
-              <div>
-                <h1>Направете материала по-труден за ИИ</h1>
-                <p className="lede">Качете задание, тест или работен лист. Ще видите колко лесно ученик би го решил с ИИ и какво да промените.</p>
-              </div>
-            </div>
-            <div className="card">
-            <div className="tabs" role="tablist">
-              <button role="tab" aria-selected={mode === "file"} className={mode === "file" ? "on" : ""} onClick={() => setMode("file")}>
-                Файл или снимка
-              </button>
-              <button role="tab" aria-selected={mode === "text"} className={mode === "text" ? "on" : ""} onClick={() => setMode("text")}>
-                Текст
-              </button>
-            </div>
+          <section className="handover">
+            <div
+              className="paper"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) {
+                  pickFile(f);
+                  setMode("file");
+                }
+              }}
+            >
+              <h1>Покажете ми материала и ще го прегледам.</h1>
+              <p className="lede">
+                Поставете текста по-долу или качете снимка или PDF. Ще подчертая местата, които ученик лесно би дал на ИИ, и ще ви предложа как да ги пренапишете.
+              </p>
 
-            {mode === "file" ? (
-              <div
-                className={`drop ${dragOver ? "over" : ""} ${file ? "has" : ""}`}
-                onClick={() => inputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  pickFile(e.dataTransfer.files?.[0]);
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
-              >
-                <input ref={inputRef} type="file" accept="application/pdf,image/*" hidden onChange={(e) => pickFile(e.target.files?.[0])} />
-                {file ? (
-                  <div className="file-chosen">
-                    {preview ? <img src={preview} alt="Преглед на материала" /> : <div className="pdf-badge">PDF</div>}
-                    <div>
-                      <strong>{file.name}</strong>
-                      <small>{(file.size / 1024 / 1024).toFixed(1)} MB. Натиснете, за да смените.</small>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="drop-icon"><UploadIcon /></div>
-                    <strong>Изберете файл или го пуснете тук</strong>
-                    <small>PDF до 3 MB или снимка, включително от телефона</small>
-                  </>
+              {mode === "file" && file ? (
+                <div className="file-row">
+                  <span className="file-chip">
+                    {preview ? <img src={preview} alt="" /> : null}
+                    <span>
+                      {file.name} <span className="hint">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    </span>
+                  </span>
+                  <button
+                    className="link"
+                    onClick={() => {
+                      setFile(null);
+                      setPreview(null);
+                      setMode("text");
+                    }}
+                  >
+                    Махни файла
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  className="paste"
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setMode("text");
+                  }}
+                  placeholder="Поставете текста тук – задание, тест, работен лист…"
+                  aria-label="Текстът на материала"
+                />
+              )}
+
+              <div className="file-row">
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="application/pdf,image/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      pickFile(f);
+                      setMode("file");
+                    }
+                  }}
+                />
+                {!(mode === "file" && file) && (
+                  <span>
+                    Или{" "}
+                    <button className="link" onClick={() => inputRef.current?.click()}>
+                      качете снимка или PDF
+                    </button>{" "}
+                    (до 3 MB). Може и да го пуснете върху листа.
+                  </span>
                 )}
               </div>
-            ) : (
-              <textarea
-                className="paste"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Поставете текста на материала тук…"
-                rows={9}
-              />
-            )}
+              {dragOver && <div className="drag-hint">Пуснете файла тук</div>}
 
-            <div className="context-row">
-              {subjects.length > 1 && (
-                <div className="ctx-group">
-                  <span className="ctx-label">Предмет</span>
-                  <div className="chips">
-                    {subjects.map((sub) => (
-                      <button key={sub} type="button" className={`chip-btn ${ctx.subject === sub ? "on" : ""}`} aria-pressed={ctx.subject === sub} onClick={() => setCtx({ ...ctx, subject: sub })}>
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {grades.length > 0 && (
-                <div className="ctx-group">
-                  <span className="ctx-label">
-                    Клас <span className="optional">(по избор)</span>
-                  </span>
-                  <div className="chips">
-                    {grades.map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        className={`chip-btn round ${ctx.grade === g ? "on" : ""}`}
-                        aria-pressed={ctx.grade === g}
-                        onClick={() => setCtx({ ...ctx, grade: ctx.grade === g ? "" : g })}
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {error && <p className="error" role="alert">{error}</p>}
+
+              <div className="handover-actions">
+                <button className="primary big" onClick={analyze}>
+                  Прегледай материала
+                </button>
+                <p className="privacy">Без имена на ученици, моля.</p>
+              </div>
             </div>
-            {subjects.length === 1 && (
-              <p className="hint ctx-note">
-                Предмет: {subjects[0]}.{" "}
-                <button className="link" onClick={() => setView("settings")}>Промени</button>
-              </p>
-            )}
 
-            {error && <p className="error" role="alert">{error}</p>}
-
-            <button className="primary big" onClick={analyze}>
-              Анализирай материала
-            </button>
-            <p className="privacy">Моля, не качвайте материали с имена или лични данни на ученици.</p>
-            </div>
+            <aside className="handover-side">
+              <div className="sticky">
+                <h3>За кого е?</h3>
+                {subjects.length > 1 && (
+                  <div className="ctx-group">
+                    <span className="ctx-label">Предмет</span>
+                    <div className="chips">
+                      {subjects.map((sub) => (
+                        <button key={sub} type="button" className={`chip-btn ${ctx.subject === sub ? "on" : ""}`} aria-pressed={ctx.subject === sub} onClick={() => setCtx({ ...ctx, subject: sub })}>
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {subjects.length === 1 && (
+                  <p className="ctx-note">
+                    {subjects[0]}.{" "}
+                    <button className="link" onClick={() => setView("settings")}>Промени</button>
+                  </p>
+                )}
+                {grades.length > 0 && (
+                  <div className="ctx-group">
+                    <span className="ctx-label">
+                      Клас <span className="optional">(ако искате)</span>
+                    </span>
+                    <div className="chips">
+                      {grades.map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          className={`chip-btn round ${ctx.grade === g ? "on" : ""}`}
+                          aria-pressed={ctx.grade === g}
+                          onClick={() => setCtx({ ...ctx, grade: ctx.grade === g ? "" : g })}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
           </section>
         ) : step === "results" && analysis ? (
           <section>
-            <div className="page-head">
+            <div className="review-head">
               <div>
                 {(ctx.grade || ctx.subject) && <p className="context">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(", ")}</p>}
-                <h1>{analysis.title || "Анализ на материала"}</h1>
-                <p className="lede">{analysis.score_reason}</p>
+                <h1>{analysis.title || "Вашият материал"}</h1>
+                <p className="hint" style={{ marginTop: 8 }}>
+                  Червеното е там, където ученик лесно би дал работата на ИИ. Отворете бележка, за да видите какво предлагам.
+                </p>
               </div>
-              <Meter label="Колко лесно е за ИИ" value={analysis.ai_score_before} />
-            </div>
-
-            <Tips tips={analysis.delivery_tips || []} />
-
-            <div className="board-head">
-              <h2>Предложения</h2>
-              <span className="hint">Посочете бележка, за да видите частта, за която се отнася.</span>
+              <Tips tips={analysis.delivery_tips || []} />
             </div>
 
             <Board
               parts={analysis.parts}
               suggestions={analysis.suggestions}
               selected={selected}
+              verdict={analysis.score_reason}
+              score={analysis.ai_score_before}
               onToggle={(i) => setSelected((arr) => arr.map((v, j) => (j === i ? !v : v)))}
             />
 
@@ -637,80 +648,78 @@ export default function Home() {
             <div className="dock">
               <div className="dock-inner">
                 <span className="dock-text">
-                  Избрани <b>{chosenCount} от {analysis.suggestions.length}</b> предложения
+                  В новата версия: <b>{chosenCount} от {analysis.suggestions.length}</b> бележки
                 </span>
                 <button className="quiet-btn" onClick={restart}>Нов материал</button>
                 <button className="primary" onClick={finalize} disabled={!chosenCount}>
-                  Създай новата версия
+                  Препиши го начисто
                 </button>
               </div>
             </div>
           </section>
         ) : step === "final" && final ? (
           <section>
-            <div className="page-head">
+            <div className="handout-head">
               <div>
-                <p className="context">Запазено в „Моите материали“</p>
+                <p className="context">Препис начисто. Пазя го в „Моите материали“.</p>
                 <h1>{final.title}</h1>
                 <p className="lede">{final.score_reason}</p>
               </div>
-              <div className="meter-pair">
-                <Meter label="Преди" value={analysis.ai_score_before} />
-                <Meter label="След" value={final.ai_score_after} from={analysis.ai_score_before} />
+              <div className="score-change" aria-label={`Колко лесно е за ИИ: преди ${analysis.ai_score_before}, сега ${final.ai_score_after} от 10`}>
+                <span className="was">{analysis.ai_score_before}</span>
+                <span className="arrow" aria-hidden="true">→</span>
+                <span className="now">{final.ai_score_after}</span>
+                <small>колко лесно е за ИИ, от 10</small>
               </div>
             </div>
 
             <div className="tabs compare-tabs" role="tablist">
-              <button role="tab" aria-selected={compareTab === "before"} className={compareTab === "before" ? "on" : ""} onClick={() => setCompareTab("before")}>
-                Преди
-              </button>
               <button role="tab" aria-selected={compareTab === "after"} className={compareTab === "after" ? "on" : ""} onClick={() => setCompareTab("after")}>
-                След
+                Новата версия
+              </button>
+              <button role="tab" aria-selected={compareTab === "before"} className={compareTab === "before" ? "on" : ""} onClick={() => setCompareTab("before")}>
+                Оригиналът
               </button>
             </div>
 
             <div className={`versions show-${compareTab}`}>
               <div className="version before">
-                <div className="version-label">Преди</div>
-                <div className="sheet">
+                <div className="paper handout">
                   {analysis.parts.map((p) => (
                     <div key={p.id} className="old-part">
-                      <div className="part-label">{p.label}</div>
                       <p>{p.text}</p>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="version after">
-                <div className="version-label">След</div>
-                <div className="sheet print-area">
-                  <h1 className="doc-title">{final.title}</h1>
+                <div className="paper handout print-area">
+                  <h2 className="doc-title">{final.title}</h2>
                   <RichText text={final.assignment} />
                 </div>
               </div>
             </div>
 
             <div className="teacher-notes">
-              <h2>Бележки за учителя</h2>
+              <h2>Само за вас</h2>
               <RichText text={final.teacher_notes} />
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
 
             <div className="actions final-actions">
-              <button className="ghost" onClick={() => setStep("results")}>Промени избора</button>
+              <button className="ghost" onClick={() => setStep("results")}>Обратно към бележките</button>
               <span className="spacer" />
+              {copied && <span className="copied">копирано</span>}
+              <button className="ghost" onClick={copyHandout}>Копирай текста</button>
               <button className="ghost" onClick={() => window.print()}>Печат или PDF</button>
-              <button
-                className="primary"
-                onClick={() => exportDocx(final).catch(() => setError("Word файлът не можа да бъде създаден."))}
-              >
+              <button className="primary" onClick={() => exportDocx(final).catch(() => setError("Word файлът не можа да бъде създаден."))}>
                 Изтегли за Word
               </button>
             </div>
             <p className="final-foot">
               За PDF изберете „Запази като PDF“ в прозореца за печат.{" "}
-              <button className="link" onClick={restart}>Анализирай друг материал</button>
+              <button className="link" onClick={restart}>Прегледай друг материал</button>
             </p>
           </section>
         ) : null}

@@ -42,7 +42,7 @@ export async function POST(req) {
   const chosenText = chosen
     .map((s, i) => {
       const where = s.targets?.length ? ` (за: ${s.targets.map((t) => labelOf[t] || t).join(", ")})` : " (за целия материал)";
-      return `${i + 1}. ${s.title}${where}\n   Промяна: ${s.change}\n   Пример: ${s.example}`;
+      return `${i + 1}. ${s.title}${where}\n   Промяна: ${s.change}\n   Пренаписан откъс: ${s.rewrite || s.example}`;
     })
     .join("\n\n");
 

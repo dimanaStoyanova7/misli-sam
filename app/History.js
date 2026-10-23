@@ -66,7 +66,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
       <div className="history-head">
         <div>
           <h1>Моите материали</h1>
-          <p className="lead">Всеки анализиран материал се пази тук. Отворете го, за да изтеглите новата версия или да изберете други предложения.</p>
+          <p className="lead">Тук пазя всичко, което сме прегледали. Отворете материал, за да вземете новата версия или да изберете други бележки.</p>
         </div>
         <button className="primary" onClick={onNew}>Нов материал</button>
       </div>
@@ -77,9 +77,9 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
         <div className="loading"><div className="spinner" /></div>
       ) : items && items.length === 0 ? (
         <div className="card empty">
-          <h2>Все още нямате запазени материали</h2>
-          <p className="hint">Анализирайте първия си материал и той ще се появи тук.</p>
-          <button className="primary" onClick={onNew}>Анализирай материал</button>
+          <h2>Още нищо не сме преглеждали</h2>
+          <p className="hint">Покажете ми първия си материал и той ще се появи тук.</p>
+          <button className="primary" onClick={onNew}>Покажи ми материал</button>
         </div>
       ) : items ? (
         <>
@@ -96,7 +96,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
                   </span>
                   <span className="history-status">
                     <ScorePill before={it.score_before} after={it.has_final ? it.score_after : null} />
-                    {!it.has_final && <span className="draft">без нова версия</span>}
+                    {!it.has_final && <span className="draft">само бележки</span>}
                   </span>
                 </button>
                 <button className="ghost small" onClick={() => remove(it)} aria-label={`Изтрий ${it.title}`}>

@@ -1,98 +1,124 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-// The material is shown as one continuous sheet of paper, split into its parts.
-// Suggestions sit in the margin next to the part they change, like a teacher's notes,
-// and footnote numbers in the text point to them. Notes for the whole material sit
-// beside the sheet's title.
+// The teacher's material as a marked-up sheet of paper.
+// - Weak passages are underlined in red (or bracketed in the margin when the whole part is weak).
+// - Each suggestion is a handwritten note in the right margin, placed next to its passage
+//   and connected to it with a thin red line. Notes never overlap: later ones are pushed down.
+// - Clicking a note (or an underline) unfolds the full suggestion: why it's weak and a rewrite.
+// - On narrow screens the margin disappears and notes sit right under their passage.
 
-const IMPACT_DOTS = { висок: 3, среден: 2, нисък: 1 };
-const IMPACT_WORD = { висок: "Голям ефект", среден: "Среден ефект", нисък: "Малък ефект" };
+const IMPACT = { висок: "голям", среден: "среден", нисък: "малък" };
+const NARROW = "(max-width: 960px)";
+const GAP = 16;          // space between notes in the margin
+const MARGIN_TOP = 128;  // keep the corner mark clear
 
-function Dots({ n }) {
-  return (
-    <span className="dots" aria-hidden="true">
-      {"●".repeat(n)}
-      <i>{"●".repeat(3 - n)}</i>
-    </span>
-  );
+function scoreTone(n) {
+  if (n >= 7) return "high";
+  if (n >= 4) return "mid";
+  return "low";
 }
 
-const Tick = () => (
-  <svg viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3.5 8.5l3 3 6-7" />
-  </svg>
-);
-
-function Note({ s, num, on, onToggle, otherTargets, onJump, onHover, active }) {
-  const dots = IMPACT_DOTS[s.impact] || 1;
+function Note({ it, on, open, inline, onOpen, onToggle, onHover, otherTargets, onJump, noteRef, top }) {
+  const s = it.s;
   const cost = s.costs?.[0]?.replace(/^\+\s*/, "");
   return (
-    <article
-      id={`sug-${num}`}
-      className={`note ${on ? "chosen" : "off"} ${active ? "active" : ""}`}
+    <div
+      id={`${inline ? "inote" : "note"}-${it.num}`}
+      ref={noteRef}
+      className={`note ${inline ? "inline" : ""} ${on ? "" : "off"} ${open ? "open" : ""}`}
+      style={inline ? undefined : { top }}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
-      <div className="note-head">
-        <span className="note-num">{num}</span>
-        <h3>{s.title}</h3>
-        <button
-          className={`check ${on ? "on" : ""}`}
-          role="checkbox"
-          aria-checked={on}
-          aria-label={on ? `Включено в новата версия: ${s.title}` : `Включи в новата версия: ${s.title}`}
-          title={on ? "Включено в новата версия" : "Включи в новата версия"}
-          onClick={onToggle}
-          onFocus={() => onHover(true)}
-          onBlur={() => onHover(false)}
-        >
-          <Tick />
-        </button>
-      </div>
-
-      <div className="note-meta">
-        <span>
-          {IMPACT_WORD[s.impact] || "Ефект"}
-          <Dots n={dots} />
+      <button className="note-face" aria-expanded={open} onClick={onOpen}>
+        <span className={`circ ${on ? "" : "off"}`}>{it.num}</span>
+        <span className="note-mark">
+          <span>{s.margin_note || s.title}</span>
+          {!open && <small>{s.title}</small>}
         </span>
-        {cost && <span className="cost">За вас: {cost}</span>}
-        {otherTargets.length > 0 && (
-          <span className="also">
-            Също за{" "}
-            {otherTargets.map((p, i) => (
-              <span key={p.id}>
-                {i > 0 && ", "}
-                <button onClick={() => onJump(p.id)}>{p.label}</button>
-              </span>
-            ))}
-          </span>
-        )}
-      </div>
+      </button>
 
-      <p className="note-why">
-        <b>Защо.</b> {s.problem}
-      </p>
-      {s.example && <p className="note-example">„{s.example.replace(/^[„"“]+|[“"”]+$/g, "")}“</p>}
-      {s.needs_ai_sample && <p className="note-auto">Отговорът от ИИ ще бъде написан в новата версия.</p>}
-    </article>
+      {open && (
+        <div className="note-slip">
+          <p className="slip-title">{s.title}</p>
+          <span className="slip-k">Защо е слабо</span>
+          <p>{s.problem}</p>
+          {s.rewrite && (
+            <>
+              <span className="slip-k">Предлагам така</span>
+              <p className="slip-rewrite">{s.rewrite}</p>
+            </>
+          )}
+          <div className="slip-meta">
+            <span>Ефект: {IMPACT[s.impact] || "среден"}</span>
+            {cost && <span>Допълнително за вас: {cost}</span>}
+            {s.needs_ai_sample && <span className="slip-auto">Отговора от ИИ ще го напиша в новата версия.</span>}
+            {otherTargets.length > 0 && (
+              <span>
+                Отнася се и за{" "}
+                {otherTargets.map((p, i) => (
+                  <span key={p.id}>
+                    {i > 0 && ", "}
+                    <button onClick={() => onJump(p.id)}>{p.label}</button>
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+          <button className={`include ${on ? "on" : ""}`} role="checkbox" aria-checked={on} onClick={onToggle}>
+            <span className="box" aria-hidden="true" />
+            Включи в новата версия
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
-export default function Board({ parts, suggestions, selected, onToggle }) {
-  const [hoverSug, setHoverSug] = useState(null); // index into suggestions
-  const [hoverPart, setHoverPart] = useState(null); // part id
+// Splits a passage into plain text and underlined weak spots.
+function segmentsFor(text, items) {
+  const found = [];
+  for (const it of items) {
+    const q = it.s.quote;
+    if (!q) continue;
+    const at = text.indexOf(q);
+    if (at >= 0) found.push({ at, end: at + q.length, it });
+  }
+  found.sort((a, b) => a.at - b.at);
+  const out = [];
+  let pos = 0;
+  for (const f of found) {
+    if (f.at < pos) continue; // overlapping quotes: keep the first
+    if (f.at > pos) out.push(text.slice(pos, f.at));
+    out.push(f);
+    pos = f.end;
+  }
+  if (pos < text.length) out.push(text.slice(pos));
+  return out;
+}
+
+export default function Board({ parts, suggestions, selected, onToggle, verdict, score }) {
+  const [openId, setOpenId] = useState(null);
+  const [hoverId, setHoverId] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [layout, setLayout] = useState({ tops: {}, paths: {}, height: 0 });
+  const sheetRef = useRef(null);
+  const marginRef = useRef(null);
+  const verdictRef = useRef(null);
+  const anchorRefs = useRef({});
+  const noteRefs = useRef({});
   const flashTimer = useRef(null);
+  const frame = useRef(0);
 
   const partIndex = useMemo(() => Object.fromEntries(parts.map((p, i) => [p.id, i])), [parts]);
   const partById = useMemo(() => Object.fromEntries(parts.map((p) => [p.id, p])), [parts]);
 
-  // Order: whole-material notes first, then by the first part they point to.
+  // Whole-material notes first, then in the order of the passages they mark.
   const ordered = useMemo(() => {
     const items = suggestions.map((s, i) => {
-      const targets = [...s.targets].sort((a, b) => partIndex[a] - partIndex[b]);
+      const targets = [...(s.targets || [])].sort((a, b) => partIndex[a] - partIndex[b]);
       return { s, i, targets, home: targets[0] ?? null };
     });
     items.sort((a, b) => {
@@ -105,124 +131,228 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
 
   const general = ordered.filter((it) => it.home === null);
   const byHome = {};
-  const refsByPart = {}; // part id -> notes that live at an earlier part but also apply here
+  const linkedByPart = {};
   for (const it of ordered) {
-    if (it.home === null) continue;
-    (byHome[it.home] ||= []).push(it);
-    for (const t of it.targets.slice(1)) (refsByPart[t] ||= []).push(it);
+    if (it.home !== null) (byHome[it.home] ||= []).push(it);
+    for (const t of it.targets) (linkedByPart[t] ||= []).push(it);
   }
 
-  const lit = new Set(hoverSug !== null ? ordered.find((it) => it.i === hoverSug)?.targets || [] : []);
-  if (flash) lit.add(flash);
+  const activeId = hoverId ?? openId;
+  const active = ordered.find((it) => it.i === activeId);
+  const litParts = new Set(active ? (active.s.quote ? active.targets.slice(1) : active.targets) : []);
+  if (flash) litParts.add(flash);
 
-  function jumpTo(elementId, partId) {
-    document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    if (partId) {
-      setFlash(partId);
-      clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlash(null), 1600);
+  // ---------- Margin layout: place each note beside its anchor, without overlaps ----------
+  const measure = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const sheet = sheetRef.current;
+      const margin = marginRef.current;
+      if (!sheet || !margin || margin.offsetWidth === 0) return;
+      const sRect = sheet.getBoundingClientRect();
+      const mRect = margin.getBoundingClientRect();
+      const anchors = ordered
+        .map((it) => {
+          const el = it.home === null ? verdictRef.current : anchorRefs.current[it.i];
+          if (!el) return null;
+          const rects = el.getClientRects();
+          const box = el.getBoundingClientRect();
+          const first = rects[0] || box;
+          const last = rects[rects.length - 1] || first;
+          const isQuote = el.tagName === "MARK";
+          return {
+            it,
+            top: first.top - mRect.top,
+            from: isQuote
+              ? { x: last.right - sRect.left + 2, y: last.bottom - sRect.top - 3 }
+              : { x: box.right - sRect.left + 6, y: first.top - sRect.top + 16 },
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.top - b.top || a.it.num - b.it.num);
+
+      const tops = {};
+      const paths = {};
+      let bottom = MARGIN_TOP - GAP;
+      for (const a of anchors) {
+        const h = noteRefs.current[a.it.i]?.offsetHeight || 60;
+        const y = Math.max(a.top - 2, bottom + GAP);
+        tops[a.it.i] = Math.round(y);
+        bottom = y + h;
+        const x2 = mRect.left - sRect.left + 18;
+        const y2 = mRect.top - sRect.top + y + 15;
+        const { x: x1, y: y1 } = a.from;
+        const bend = Math.max(24, (x2 - x1) / 2);
+        paths[a.it.i] = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${(x1 + bend).toFixed(1)} ${y1.toFixed(1)}, ${(x2 - bend).toFixed(1)} ${y2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+      }
+      const next = { tops, paths, height: Math.round(bottom + 48) };
+      setLayout((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    });
+  }, [ordered]);
+
+  useLayoutEffect(() => {
+    measure();
+  }, [measure, openId, selected]);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(measure);
+    if (sheetRef.current) ro.observe(sheetRef.current);
+    Object.values(noteRefs.current).forEach((el) => el && ro.observe(el));
+    window.addEventListener("resize", measure);
+    document.fonts?.ready?.then(measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(frame.current);
+    };
+  }, [measure, openId]);
+
+  function openNote(i, fromText) {
+    setOpenId((cur) => (cur === i && !fromText ? null : i));
+    if (fromText) {
+      const it = ordered.find((x) => x.i === i);
+      const narrow = window.matchMedia(NARROW).matches;
+      setTimeout(() => document.getElementById(`${narrow ? "inote" : "note"}-${it.num}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 40);
     }
   }
 
-  const note = (it) => (
-    <Note
-      key={it.i}
-      s={it.s}
-      num={it.num}
-      on={!!selected[it.i]}
-      onToggle={() => onToggle(it.i)}
-      otherTargets={it.targets.slice(1).map((id) => partById[id]).filter(Boolean)}
-      onJump={(id) => jumpTo(`part-${id}`, id)}
-      onHover={(h) => setHoverSug(h ? it.i : null)}
-      active={hoverPart !== null && it.targets.includes(hoverPart)}
-    />
-  );
+  function jumpToPart(id) {
+    document.getElementById(`part-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlash(id);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 1600);
+  }
+
+  const noteProps = (it, inline) => ({
+    it,
+    inline,
+    on: !!selected[it.i],
+    open: openId === it.i,
+    onOpen: () => openNote(it.i, false),
+    onToggle: () => onToggle(it.i),
+    onHover: (h) => setHoverId(h ? it.i : null),
+    otherTargets: it.targets.slice(1).map((id) => partById[id]).filter(Boolean),
+    onJump: jumpToPart,
+    noteRef: inline ? undefined : (el) => (noteRefs.current[it.i] = el),
+    top: layout.tops[it.i] ?? 0,
+  });
 
   return (
-    <div className="board">
-      {general.length > 0 && (
-        <div className="row">
-          <div className="sheet-cell">
-            <div className="part-body">
-              <div className="part-label">Целият материал</div>
-              <p className="sheet-sub">Бележките вдясно се отнасят за материала като цяло, а не за отделна задача.</p>
+    <div className="paper sheet" ref={sheetRef}>
+      <div className="sheet-grid">
+        <div className="sheet-text">
+          <div className="verdict">
+            <p ref={verdictRef}>{verdict}</p>
+            <div className={`grade grade-inline ${scoreTone(score) === "low" ? "low" : ""}`}>
+              <span>
+                <b>{score}</b>
+                <small>лесно за ИИ</small>
+              </span>
             </div>
           </div>
-          <div className="notes-col">{general.map(note)}</div>
-        </div>
-      )}
+          {general.length > 0 && (
+            <div className="inline-notes">
+              {general.map((it) => (
+                <Note key={`i-${it.i}`} {...noteProps(it, true)} />
+              ))}
+            </div>
+          )}
 
-      {parts.map((p) => {
-        const home = byHome[p.id] || [];
-        const refs = refsByPart[p.id] || [];
-        const linked = [...home, ...refs].sort((a, b) => a.num - b.num);
-        const empty = linked.length === 0;
-        return (
-          <div key={p.id} className={`row ${empty ? "row-empty" : ""}`}>
-            <div
-              id={`part-${p.id}`}
-              className={`sheet-cell ${lit.has(p.id) ? "lit" : ""}`}
-              onMouseEnter={() => !empty && setHoverPart(p.id)}
-              onMouseLeave={() => setHoverPart(null)}
-            >
-              <div className="part-body">
-              <div className="part-label">{p.label}</div>
-              <p className={`part-text ${empty ? "quiet" : ""}`}>
-                {p.text}
-                {!empty && (
-                  <span className="fn-refs">
-                    {linked.map((it, k) => (
-                      <button
-                        key={it.i}
-                        className={`fn ${selected[it.i] ? "" : "off"}`}
-                        title={it.s.title}
-                        aria-label={`Бележка ${it.num}: ${it.s.title}`}
-                        onClick={() => jumpTo(`sug-${it.num}`)}
-                      >
-                        {k > 0 ? `,${it.num}` : it.num}
+          {parts.map((p) => {
+            const home = byHome[p.id] || [];
+            const linked = linkedByPart[p.id] || [];
+            const wholePart = home.filter((it) => !it.s.quote || !p.text.includes(it.s.quote));
+            const bracketed = wholePart.length > 0;
+            const bracketOn = wholePart.some((it) => selected[it.i]);
+            const segs = segmentsFor(p.text, home);
+            return (
+              <div
+                key={p.id}
+                id={`part-${p.id}`}
+                className={`passage ${bracketed ? "bracketed" : ""} ${bracketed && !bracketOn ? "off" : ""} ${litParts.has(p.id) ? "lit" : ""}`}
+                ref={(el) => wholePart.forEach((it) => (anchorRefs.current[it.i] = el))}
+              >
+                {linked.length > 0 && (
+                  <span className="margin-nums">
+                    {linked.map((it) => (
+                      <button key={it.i} className={`circ ${selected[it.i] ? "" : "off"}`} title={it.s.title} onClick={() => openNote(it.i, true)}>
+                        {it.num}
                       </button>
                     ))}
                   </span>
                 )}
-              </p>
+                <span className="passage-body">
+                  {segs.map((seg, k) =>
+                    typeof seg === "string" ? (
+                      <span key={k}>{seg}</span>
+                    ) : (
+                      <mark
+                        key={k}
+                        ref={(el) => (anchorRefs.current[seg.it.i] = el)}
+                        className={`flag ${selected[seg.it.i] ? "" : "off"} ${activeId === seg.it.i ? "lit" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        title={seg.it.s.margin_note || seg.it.s.title}
+                        onClick={() => openNote(seg.it.i, true)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openNote(seg.it.i, true);
+                          }
+                        }}
+                        onMouseEnter={() => setHoverId(seg.it.i)}
+                        onMouseLeave={() => setHoverId(null)}
+                      >
+                        {p.text.slice(seg.at, seg.end)}
+                      </mark>
+                    )
+                  )}
+                </span>
+                {home.length > 0 && (
+                  <div className="inline-notes">
+                    {home.map((it) => (
+                      <Note key={`i-${it.i}`} {...noteProps(it, true)} />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            );
+          })}
+        </div>
 
-            <div className="notes-col">
-              {home.map(note)}
-              {refs.map((it) => (
-                <button key={`ref-${it.i}`} className="note-ref" onClick={() => jumpTo(`sug-${it.num}`)}>
-                  <b>{it.num}</b>
-                  <span>
-                    {it.s.title}, описано при {partById[it.home]?.label}
-                  </span>
-                </button>
-              ))}
-            </div>
+        <div className="sheet-margin" ref={marginRef} style={{ minHeight: layout.height || undefined }}>
+          <div className={`grade ${scoreTone(score) === "low" ? "low" : ""}`} style={{ position: "absolute", top: 26, right: 34 }}>
+            <span>
+              <b>{score}</b>
+              <small>лесно за ИИ</small>
+            </span>
           </div>
-        );
-      })}
+          {ordered.map((it) => (
+            <Note key={`m-${it.i}`} {...noteProps(it, false)} />
+          ))}
+        </div>
+      </div>
+
+      <svg className="connectors" aria-hidden="true">
+        {ordered.map((it) =>
+          layout.paths[it.i] ? <path key={it.i} d={layout.paths[it.i]} className={activeId === it.i ? "on" : ""} /> : null
+        )}
+      </svg>
     </div>
   );
 }
 
-// Advice on how to run the work (in class, by hand…). Not a suggestion: no checkbox,
-// and it never goes into the new version.
+// Advice on how to run the work (in class, by hand…): one sticky note, never part of the new version.
 export function Tips({ tips = [] }) {
   if (!tips.length) return null;
   return (
-    <aside className="tips" aria-label="Съвет за провеждане">
-      <h3>
-        {tips.length > 1 ? "Съвети за провеждане" : "Съвет за провеждане"}
-        <small>не променя текста на материала</small>
-      </h3>
-      <ul>
-        {tips.map((t, i) => (
-          <li key={i}>
-            <strong>{t.title.replace(/[.!\s]+$/, "")}.</strong> {t.why}
-          </li>
-        ))}
-      </ul>
+    <aside className="sticky review-tip" aria-label="Съвет за провеждане">
+      <h3>Преди да го дадете на учениците</h3>
+      {tips.map((t, i) => (
+        <p key={i}>
+          <b>{t.title.replace(/[.!\s]+$/, "")}.</b> {t.why}
+        </p>
+      ))}
     </aside>
   );
 }
