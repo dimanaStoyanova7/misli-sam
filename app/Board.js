@@ -2,60 +2,80 @@
 
 import { useMemo, useRef, useState } from "react";
 
-// Shows the assignment split into its parts, with each suggestion placed right next to
-// the part it's about (like comments in a document). General suggestions go on top.
+// The material is shown as one continuous sheet of paper, split into its parts.
+// Suggestions sit in the margin next to the part they change, like a teacher's notes,
+// and footnote numbers in the text point to them. Notes for the whole material sit
+// beside the sheet's title.
 
-const IMPACT = { висок: "high", среден: "mid", нисък: "low" };
+const IMPACT_DOTS = { висок: 3, среден: 2, нисък: 1 };
+const IMPACT_WORD = { висок: "Голям ефект", среден: "Среден ефект", нисък: "Малък ефект" };
 
-function SuggestionCard({ s, num, on, onToggle, otherTargets, onJump, onHover, active }) {
+function Dots({ n }) {
+  return (
+    <span className="dots" aria-hidden="true">
+      {"●".repeat(n)}
+      <i>{"●".repeat(3 - n)}</i>
+    </span>
+  );
+}
+
+const Tick = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3.5 8.5l3 3 6-7" />
+  </svg>
+);
+
+function Note({ s, num, on, onToggle, otherTargets, onJump, onHover, active }) {
+  const dots = IMPACT_DOTS[s.impact] || 1;
+  const cost = s.costs?.[0]?.replace(/^\+\s*/, "");
   return (
     <article
       id={`sug-${num}`}
-      className={`sug ${on ? "chosen" : "off"} ${active ? "active" : ""}`}
+      className={`note ${on ? "chosen" : "off"} ${active ? "active" : ""}`}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      onFocus={() => onHover(true)}
-      onBlur={() => onHover(false)}
     >
-      <header>
-        <div className="sug-title">
-          <span className="num">{num}</span>
-          <h3>{s.title}</h3>
-        </div>
-        <button className={`toggle ${on ? "on" : ""}`} aria-pressed={on} onClick={onToggle}>
-          {on ? "✓ Включено" : "Включи"}
+      <div className="note-head">
+        <span className="note-num">{num}</span>
+        <h3>{s.title}</h3>
+        <button
+          className={`check ${on ? "on" : ""}`}
+          role="checkbox"
+          aria-checked={on}
+          aria-label={on ? `Включено в новата версия: ${s.title}` : `Включи в новата версия: ${s.title}`}
+          title={on ? "Включено в новата версия" : "Включи в новата версия"}
+          onClick={onToggle}
+          onFocus={() => onHover(true)}
+          onBlur={() => onHover(false)}
+        >
+          <Tick />
         </button>
-      </header>
+      </div>
 
-      <div className="sug-meta">
-        <span className={`impact impact-${IMPACT[s.impact] || "low"}`}>{s.impact ? `${s.impact[0].toUpperCase()}${s.impact.slice(1)} ефект` : "Ефект"}</span>
-        {s.costs?.[0] && (
-          <span className="meta-item cost" title="Допълнителни усилия за вас">
-            ⏱ За вас: {s.costs[0].replace(/^\+\s*/, "")}
-          </span>
-        )}
-        {s.needs_ai_sample && <span className="meta-item ready">✓ Отговорът от ИИ се генерира автоматично</span>}
+      <div className="note-meta">
+        <span>
+          {IMPACT_WORD[s.impact] || "Ефект"}
+          <Dots n={dots} />
+        </span>
+        {cost && <span className="cost">За вас: {cost}</span>}
         {otherTargets.length > 0 && (
-          <span className="meta-item also">
-            също за{" "}
-            {otherTargets.map((p) => (
-              <button key={p.id} className="chip" onClick={() => onJump(p.id)}>
-                {p.label} ↓
-              </button>
+          <span className="also">
+            Също за{" "}
+            {otherTargets.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 && ", "}
+                <button onClick={() => onJump(p.id)}>{p.label}</button>
+              </span>
             ))}
           </span>
         )}
       </div>
 
-      <p className="why">
-        <b>Защо:</b> {s.problem}
+      <p className="note-why">
+        <b>Защо.</b> {s.problem}
       </p>
-      {s.example && (
-        <div className="example">
-          <span className="example-label">Как може да звучи</span>
-          <p>„{s.example.replace(/^[„"“]+|[“"”]+$/g, "")}“</p>
-        </div>
-      )}
+      {s.example && <p className="note-example">„{s.example.replace(/^[„"“]+|[“"”]+$/g, "")}“</p>}
+      {s.needs_ai_sample && <p className="note-auto">Отговорът от ИИ ще бъде написан в новата версия.</p>}
     </article>
   );
 }
@@ -69,7 +89,7 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
   const partIndex = useMemo(() => Object.fromEntries(parts.map((p, i) => [p.id, i])), [parts]);
   const partById = useMemo(() => Object.fromEntries(parts.map((p) => [p.id, p])), [parts]);
 
-  // Order: general suggestions first, then by the first part they point to.
+  // Order: whole-material notes first, then by the first part they point to.
   const ordered = useMemo(() => {
     const items = suggestions.map((s, i) => {
       const targets = [...s.targets].sort((a, b) => partIndex[a] - partIndex[b]);
@@ -85,15 +105,15 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
 
   const general = ordered.filter((it) => it.home === null);
   const byHome = {};
-  const refsByPart = {}; // part id -> suggestions that live elsewhere but also point here
+  const refsByPart = {}; // part id -> notes that live at an earlier part but also apply here
   for (const it of ordered) {
     if (it.home === null) continue;
     (byHome[it.home] ||= []).push(it);
     for (const t of it.targets.slice(1)) (refsByPart[t] ||= []).push(it);
   }
 
-  const highlightedParts = new Set(hoverSug !== null ? ordered.find((it) => it.i === hoverSug)?.targets || [] : []);
-  if (flash) highlightedParts.add(flash);
+  const lit = new Set(hoverSug !== null ? ordered.find((it) => it.i === hoverSug)?.targets || [] : []);
+  if (flash) lit.add(flash);
 
   function jumpTo(elementId, partId) {
     document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -104,8 +124,8 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
     }
   }
 
-  const card = (it, homeId) => (
-    <SuggestionCard
+  const note = (it) => (
+    <Note
       key={it.i}
       s={it.s}
       num={it.num}
@@ -122,11 +142,13 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
     <div className="board">
       {general.length > 0 && (
         <div className="row">
-          <div className="part general">
-            <div className="part-label">Целият материал</div>
-            <p className="part-note">Тези предложения засягат материала като цяло, а не конкретен въпрос.</p>
+          <div className="sheet-cell">
+            <div className="part-body">
+              <div className="part-label">Целият материал</div>
+              <p className="sheet-sub">Бележките вдясно се отнасят за материала като цяло, а не за отделна задача.</p>
+            </div>
           </div>
-          <div className="notes-col">{general.map((it) => card(it, null))}</div>
+          <div className="notes-col">{general.map(note)}</div>
         </div>
       )}
 
@@ -139,43 +161,43 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
           <div key={p.id} className={`row ${empty ? "row-empty" : ""}`}>
             <div
               id={`part-${p.id}`}
-              className={`part ${empty ? "quiet" : "linked"} ${highlightedParts.has(p.id) ? "lit" : ""}`}
+              className={`sheet-cell ${lit.has(p.id) ? "lit" : ""}`}
               onMouseEnter={() => !empty && setHoverPart(p.id)}
               onMouseLeave={() => setHoverPart(null)}
             >
-              <div className="part-head">
-                <span className="part-label">{p.label}</span>
+              <div className="part-body">
+              <div className="part-label">{p.label}</div>
+              <p className={`part-text ${empty ? "quiet" : ""}`}>
+                {p.text}
                 {!empty && (
-                  <span className="markers">
-                    {linked.map((it) => (
+                  <span className="fn-refs">
+                    {linked.map((it, k) => (
                       <button
                         key={it.i}
-                        className={`marker ${selected[it.i] ? "" : "marker-off"}`}
+                        className={`fn ${selected[it.i] ? "" : "off"}`}
                         title={it.s.title}
+                        aria-label={`Бележка ${it.num}: ${it.s.title}`}
                         onClick={() => jumpTo(`sug-${it.num}`)}
                       >
-                        {it.num}
+                        {k > 0 ? `,${it.num}` : it.num}
                       </button>
                     ))}
                   </span>
                 )}
+              </p>
               </div>
-              <p className="part-text">{p.text}</p>
             </div>
 
             <div className="notes-col">
-              {home.map((it) => card(it, p.id))}
+              {home.map(note)}
               {refs.map((it) => (
-                <button key={`ref-${it.i}`} className="ref" onClick={() => jumpTo(`sug-${it.num}`)}>
-                  <span className="num small">{it.num}</span>
+                <button key={`ref-${it.i}`} className="note-ref" onClick={() => jumpTo(`sug-${it.num}`)}>
+                  <b>{it.num}</b>
                   <span>
-                    {it.s.title}
-                    <small> · описано при {partById[it.home]?.label}</small>
+                    {it.s.title}, описано при {partById[it.home]?.label}
                   </span>
-                  <span className="ref-arrow">↑</span>
                 </button>
               ))}
-              {empty && <p className="no-sug">Без предложения за тази част.</p>}
             </div>
           </div>
         );
@@ -184,28 +206,23 @@ export default function Board({ parts, suggestions, selected, onToggle }) {
   );
 }
 
-// Advice on how to run the work (in class, by hand…). Not a suggestion: no toggle,
+// Advice on how to run the work (in class, by hand…). Not a suggestion: no checkbox,
 // and it never goes into the new version.
 export function Tips({ tips = [] }) {
   if (!tips.length) return null;
   return (
-
-        <aside className="tips" aria-label="Съвети за провеждане">
-          <div className="tips-head">
-            <span className="tips-icon" aria-hidden="true">💡</span>
-            <div>
-              <h3>Съвет за провеждане</h3>
-              <p>Не променя текста на материала и не влиза в новата версия.</p>
-            </div>
-          </div>
-          <ul>
-            {tips.map((t, i) => (
-              <li key={i}>
-                <strong>{t.title}</strong>
-                {t.why && <span> – {t.why}</span>}
-              </li>
-            ))}
-          </ul>
-        </aside>
+    <aside className="tips" aria-label="Съвет за провеждане">
+      <h3>
+        {tips.length > 1 ? "Съвети за провеждане" : "Съвет за провеждане"}
+        <small>не променя текста на материала</small>
+      </h3>
+      <ul>
+        {tips.map((t, i) => (
+          <li key={i}>
+            <strong>{t.title.replace(/[.!\s]+$/, "")}.</strong> {t.why}
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }

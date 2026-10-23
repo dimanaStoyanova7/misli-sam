@@ -50,19 +50,31 @@ function scoreTone(n) {
 
 const RISK_WORD = { high: "висок риск", mid: "среден риск", low: "нисък риск" };
 
-function ScoreTile({ label, value }) {
+// 10-step meter: how easily a student could hand in work done by AI. `from` shows the earlier score faintly.
+function Meter({ label, value, from }) {
   const tone = scoreTone(value);
   return (
-    <div className={`tile tone-${tone}`}>
-      <div className="tile-k">{label}</div>
-      <div className="tile-v">
-        {value}
-        <small>/10</small>
+    <div className={`meter risk-${tone}`} role="img" aria-label={`${label}: ${value} от 10, ${RISK_WORD[tone]}`}>
+      <div className="meter-k">{label}</div>
+      <div className="meter-v">
+        <strong>{value}</strong>
+        <span className="of">от 10</span>
+        <span className="word">{RISK_WORD[tone]}</span>
       </div>
-      <div className="tile-s">{RISK_WORD[tone]}</div>
+      <div className="meter-bar" aria-hidden="true">
+        {Array.from({ length: 10 }, (_, i) => (
+          <span key={i} className={i < value ? "on" : from && i < from ? "ghost-on" : ""} />
+        ))}
+      </div>
     </div>
   );
 }
+
+const UploadIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M10 13V3.5M6 7.5l4-4 4 4M3.5 13v2.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13" />
+  </svg>
+);
 
 const gradeLabel = (g) => (!g ? "" : /клас/.test(g) ? g : `${g} клас`);
 const initials = (name = "") =>
@@ -168,7 +180,7 @@ function LoginCard({ initialError, onLogin }) {
     return (
       <section className="card login">
         <h1>Добре дошли</h1>
-        <p className="lead">Въведете кода на вашето училище.</p>
+        <p className="lede">Въведете кода на вашето училище. Ще ви го даде директорът или администраторът.</p>
         <form onSubmit={submitCode}>
           <label>
             Код на училището
@@ -179,19 +191,18 @@ function LoginCard({ initialError, onLogin }) {
             {sending ? "Проверка…" : "Напред"}
           </button>
         </form>
-        <p className="privacy">Нямате код? Попитайте директора или администратора на училището.</p>
       </section>
     );
   }
 
   return (
     <section className="card login">
-      <button className="link back" onClick={() => { setStage("code"); setError(""); setInfo(""); }}>← {school}</button>
-      <h1>{mode === "login" ? "Вход" : "Нов профил"}</h1>
-      <p className="lead">
+      <button className="link back" onClick={() => { setStage("code"); setError(""); setInfo(""); }}>Друго училище</button>
+      <h1>{school}</h1>
+      <p className="lede">
         {mode === "login"
-          ? "Въведете името и ПИН кода на вашия профил."
-          : "Създайте личен профил. В него ще се пазят вашите материали. Изберете ПИН от 4 до 6 цифри, който ще запомните."}
+          ? "Влезте с името и ПИН кода на профила си."
+          : "Създайте личен профил. В него ще се пазят вашите материали. Изберете ПИН от 4 до 6 цифри."}
       </p>
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "on" : ""} onClick={() => switchMode("login")}>
@@ -442,13 +453,13 @@ export default function Home() {
         )}
         {me?.loggedIn && (
           <div className="account-box">
-            <span className="who" title={`${me.teacher || ""} · ${me.school || ""}`}>
+            <span className="who" title={`${me.teacher || ""}, ${me.school || ""}`}>
               <span className="avatar">{initials(me.teacher)}</span>
               <span className="who-text">
                 <strong>{me.teacher}</strong>
                 <small>
                   {me.school}
-                  {me.limit != null && me.used != null ? ` · ${me.used}/${me.limit} този месец` : ""}
+                  {me.limit != null && me.used != null ? `, ${me.used} от ${me.limit} анализа` : ""}
                 </small>
               </span>
             </span>
@@ -486,13 +497,13 @@ export default function Home() {
           <History onOpen={openSaved} onNew={newAssignment} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
         ) : step === "input" ? (
           <section className="upload">
-            <div className="hero-text">
-              <span className="eyebrow">Нов материал</span>
-              <h1>Направете материала<br />по-труден за ИИ</h1>
-              <p className="lead">Качете задание, тест или работен лист като PDF или снимка, или поставете текста. Ще видите колко лесно ученик може да го реши с ИИ и конкретни предложения как да го промените.</p>
+            <div className="page-head">
+              <div>
+                <h1>Направете материала по-труден за ИИ</h1>
+                <p className="lede">Качете задание, тест или работен лист. Ще видите колко лесно ученик би го решил с ИИ и какво да промените.</p>
+              </div>
             </div>
             <div className="card">
-
             <div className="tabs" role="tablist">
               <button role="tab" aria-selected={mode === "file"} className={mode === "file" ? "on" : ""} onClick={() => setMode("file")}>
                 Файл или снимка
@@ -526,14 +537,14 @@ export default function Home() {
                     {preview ? <img src={preview} alt="Преглед на материала" /> : <div className="pdf-badge">PDF</div>}
                     <div>
                       <strong>{file.name}</strong>
-                      <small>{(file.size / 1024 / 1024).toFixed(1)} MB · натиснете, за да смените</small>
+                      <small>{(file.size / 1024 / 1024).toFixed(1)} MB. Натиснете, за да смените.</small>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="drop-icon">↑</div>
+                    <div className="drop-icon"><UploadIcon /></div>
                     <strong>Изберете файл или го пуснете тук</strong>
-                    <small>PDF до 3 MB, или снимка (от телефона също става)</small>
+                    <small>PDF до 3 MB или снимка, включително от телефона</small>
                   </>
                 )}
               </div>
@@ -583,42 +594,35 @@ export default function Home() {
             </div>
             {subjects.length === 1 && (
               <p className="hint ctx-note">
-                Предмет: {subjects[0]} ·{" "}
-                <button className="link" onClick={() => setView("settings")}>промени</button>
+                Предмет: {subjects[0]}.{" "}
+                <button className="link" onClick={() => setView("settings")}>Промени</button>
               </p>
             )}
 
             {error && <p className="error" role="alert">{error}</p>}
 
             <button className="primary big" onClick={analyze}>
-              Анализирай материала →
+              Анализирай материала
             </button>
             <p className="privacy">Моля, не качвайте материали с имена или лични данни на ученици.</p>
             </div>
           </section>
         ) : step === "results" && analysis ? (
           <section>
-            <div className="hero">
-              <div className="hero-text">
-                {(ctx.grade || ctx.subject) && <span className="eyebrow">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(" · ")}</span>}
+            <div className="page-head">
+              <div>
+                {(ctx.grade || ctx.subject) && <p className="context">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(", ")}</p>}
                 <h1>{analysis.title || "Анализ на материала"}</h1>
-                <p className="lead">{analysis.score_reason}</p>
+                <p className="lede">{analysis.score_reason}</p>
               </div>
-              <div className="tiles">
-                <ScoreTile label="Лесно за ИИ" value={analysis.ai_score_before} />
-                <div className="tile tone-violet">
-                  <div className="tile-k">Предложения</div>
-                  <div className="tile-v">{analysis.suggestions.length}</div>
-                  <div className="tile-s">{chosenCount} избрани</div>
-                </div>
-              </div>
+              <Meter label="Колко лесно е за ИИ" value={analysis.ai_score_before} />
             </div>
 
             <Tips tips={analysis.delivery_tips || []} />
 
-            <div className="section-bar">
-              <h2>Предложения до всяка част</h2>
-              <span className="hint">Задръжте курсора върху предложение, за да видите частта му</span>
+            <div className="board-head">
+              <h2>Предложения</h2>
+              <span className="hint">Посочете бележка, за да видите частта, за която се отнася.</span>
             </div>
 
             <Board
@@ -631,32 +635,28 @@ export default function Home() {
             {error && <p className="error" role="alert">{error}</p>}
 
             <div className="dock">
-              <span className="dock-text">
-                <b>
-                  {chosenCount} от {analysis.suggestions.length}
-                </b>{" "}
-                предложения избрани
-              </span>
-              <span className="dock-btns">
-                <button className="ghost" onClick={restart}>Нов материал</button>
+              <div className="dock-inner">
+                <span className="dock-text">
+                  Избрани <b>{chosenCount} от {analysis.suggestions.length}</b> предложения
+                </span>
+                <button className="quiet-btn" onClick={restart}>Нов материал</button>
                 <button className="primary" onClick={finalize} disabled={!chosenCount}>
-                  Създай новата версия →
+                  Създай новата версия
                 </button>
-              </span>
+              </div>
             </div>
           </section>
         ) : step === "final" && final ? (
           <section>
-            <div className="hero">
-              <div className="hero-text">
-                <span className="eyebrow">✓ Запазено в „Моите материали“</span>
+            <div className="page-head">
+              <div>
+                <p className="context">Запазено в „Моите материали“</p>
                 <h1>{final.title}</h1>
-                <p className="lead">{final.score_reason}</p>
+                <p className="lede">{final.score_reason}</p>
               </div>
-              <div className="tiles">
-                <ScoreTile label="Преди" value={analysis.ai_score_before} />
-                <div className="tiles-arrow">→</div>
-                <ScoreTile label="След" value={final.ai_score_after} />
+              <div className="meter-pair">
+                <Meter label="Преди" value={analysis.ai_score_before} />
+                <Meter label="След" value={final.ai_score_after} from={analysis.ai_score_before} />
               </div>
             </div>
 
@@ -672,7 +672,7 @@ export default function Home() {
             <div className={`versions show-${compareTab}`}>
               <div className="version before">
                 <div className="version-label">Преди</div>
-                <div className="card doc">
+                <div className="sheet">
                   {analysis.parts.map((p) => (
                     <div key={p.id} className="old-part">
                       <div className="part-label">{p.label}</div>
@@ -683,14 +683,14 @@ export default function Home() {
               </div>
               <div className="version after">
                 <div className="version-label">След</div>
-                <div className="card doc print-area">
+                <div className="sheet print-area">
                   <h1 className="doc-title">{final.title}</h1>
                   <RichText text={final.assignment} />
                 </div>
               </div>
             </div>
 
-            <div className="card notes">
+            <div className="teacher-notes">
               <h2>Бележки за учителя</h2>
               <RichText text={final.teacher_notes} />
             </div>
@@ -698,19 +698,20 @@ export default function Home() {
             {error && <p className="error" role="alert">{error}</p>}
 
             <div className="actions final-actions">
-              <button className="ghost" onClick={() => setStep("results")}>← Промени избора</button>
-              <button className="ghost" onClick={() => window.print()}>Печат / PDF</button>
+              <button className="ghost" onClick={() => setStep("results")}>Промени избора</button>
+              <span className="spacer" />
+              <button className="ghost" onClick={() => window.print()}>Печат или PDF</button>
               <button
                 className="primary"
                 onClick={() => exportDocx(final).catch(() => setError("Word файлът не можа да бъде създаден."))}
               >
-                Изтегли Word
+                Изтегли за Word
               </button>
             </div>
-            <p className="hint center">За PDF изберете „Запази като PDF“ в прозореца за печат.</p>
-            <div className="center">
+            <p className="final-foot">
+              За PDF изберете „Запази като PDF“ в прозореца за печат.{" "}
               <button className="link" onClick={restart}>Анализирай друг материал</button>
-            </div>
+            </p>
           </section>
         ) : null}
       </main>

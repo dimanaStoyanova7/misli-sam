@@ -176,11 +176,11 @@ export default function Admin() {
         <div className="brand">
           <Logo />
           <span className="who-text">
-            <span className="brand-name">Мисли сам · Администрация</span>
-            <small>{schools.length} училища · {totalMonth} анализа този месец</small>
+            <span className="brand-name">Администрация</span>
+            <small>{schools.length} училища, {totalMonth} анализа този месец</small>
           </span>
         </div>
-        <a className="link" href="/">← Към приложението</a>
+        <a className="link" href="/">Към приложението</a>
       </header>
 
       <section className="card">

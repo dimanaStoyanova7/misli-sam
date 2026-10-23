@@ -66,9 +66,9 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
       <div className="history-head">
         <div>
           <h1>Моите материали</h1>
-          <p className="lead">Всеки анализиран материал се запазва тук. Отворете го, за да изтеглите новата версия или да изберете други предложения.</p>
+          <p className="lead">Всеки анализиран материал се пази тук. Отворете го, за да изтеглите новата версия или да изберете други предложения.</p>
         </div>
-        <button className="primary" onClick={onNew}>+ Нов материал</button>
+        <button className="primary" onClick={onNew}>Нов материал</button>
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -92,13 +92,11 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
                 <button className="history-open" onClick={() => onOpen(it.id)}>
                   <span className="history-title">{it.title}</span>
                   <span className="history-meta">
-                    {[it.context?.grade, it.context?.subject].filter(Boolean).join(" · ")}
-                    {(it.context?.grade || it.context?.subject) && " · "}
-                    {dateFmt.format(new Date(it.updated_at))}
+                    {[it.context?.grade, it.context?.subject, dateFmt.format(new Date(it.updated_at))].filter(Boolean).join(", ")}
                   </span>
                   <span className="history-status">
                     <ScorePill before={it.score_before} after={it.has_final ? it.score_after : null} />
-                    {!it.has_final && <span className="draft">само анализ</span>}
+                    {!it.has_final && <span className="draft">без нова версия</span>}
                   </span>
                 </button>
                 <button className="ghost small" onClick={() => remove(it)} aria-label={`Изтрий ${it.title}`}>

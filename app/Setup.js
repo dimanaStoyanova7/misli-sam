@@ -70,7 +70,7 @@ export default function Setup({ initial, firstTime, onSaved, onCancel }) {
       {wantSubjects && (
         <>
           <h2 className="sub">
-            Кои предмети? <span className="counter">{total} от {MAX_SUBJECTS}</span>
+            Кои предмети? <span className="counter">избрани {total} от {MAX_SUBJECTS}</span>
           </h2>
           <p className="hint">
             Изберете до {MAX_SUBJECTS}.{stages.includes("1-4") ? " За 1–4 клас не е нужно – там се включват всички предмети." : ""}
@@ -80,7 +80,6 @@ export default function Setup({ initial, firstTime, onSaved, onCancel }) {
               const on = subjects.includes(name);
               return (
                 <button key={name} type="button" className={`chip-btn ${on ? "on" : ""}`} aria-pressed={on} disabled={!on && full} onClick={() => toggleSubject(name)}>
-                  {on ? "✓ " : ""}
                   {name}
                 </button>
               );
@@ -92,7 +91,7 @@ export default function Setup({ initial, firstTime, onSaved, onCancel }) {
               disabled={!otherOn && full}
               onClick={() => setOtherOn((v) => !v)}
             >
-              {otherOn ? "✓ " : ""}Друг…
+              Друг…
             </button>
           </div>
           {otherOn && (
