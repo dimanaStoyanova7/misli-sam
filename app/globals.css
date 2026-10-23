@@ -168,6 +168,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 .handover-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 26px; }
 .handover-actions .privacy { margin: 0; }
 
+/* ---------- The material's title, renameable ---------- */
+.title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+.rename { font-size: 15px; white-space: nowrap; }
+.title-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.title-edit input {
+  flex: 1 1 420px; min-width: 0; font-size: 26px; font-weight: 700; padding: 2px 0; border: 0; border-bottom: 1.5px solid var(--ink);
+  border-radius: 0; background: transparent;
+}
+.title-edit input:focus { box-shadow: none; border-bottom-color: var(--blue); }
+.title-edit .error { flex-basis: 100%; margin-top: 4px; }
+
 /* ---------- Results: the marked-up sheet ---------- */
 /* header row: title on the left, the sticky note on the right; nothing overlaps the sheet */
 .review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; margin: 6px 0 28px; }

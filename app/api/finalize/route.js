@@ -65,6 +65,7 @@ ${chosenText}
 
   try {
     const result = await callTool({ content: [{ type: "text", text }], tool: FINALIZE_TOOL, maxTokens: 6000 });
+    result.title = row.title; // the material keeps its one title
     await recordUsage(session, "finalize");
     await saveFinal(session, id, { selected, final: result }).catch((e) => console.error("saveFinal failed", e));
     return json(result);

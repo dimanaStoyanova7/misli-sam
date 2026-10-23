@@ -50,6 +50,77 @@ function scoreTone(n) {
 
 const RISK_WORD = { high: "висок риск", mid: "среден риск", low: "нисък риск" };
 
+// The material's one title, with an inline "Преименувай".
+function EditableTitle({ title, assignmentId, onRenamed }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function save(e) {
+    e.preventDefault();
+    const next = value.trim().replace(/\s+/g, " ");
+    if (!next) return setErr("Заглавието не може да е празно.");
+    if (next === title) return setEditing(false);
+    setSaving(true);
+    setErr("");
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Не успях да запазя заглавието.");
+      onRenamed(data.title);
+      setEditing(false);
+    } catch (e2) {
+      setErr(e2.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="title-row">
+        <h1>{title}</h1>
+        {assignmentId && (
+          <button
+            className="link rename"
+            onClick={() => {
+              setValue(title);
+              setErr("");
+              setEditing(true);
+            }}
+          >
+            Преименувай
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <form className="title-edit" onSubmit={save}>
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
+        maxLength={160}
+        aria-label="Заглавие на материала"
+        autoFocus
+      />
+      <button className="primary small" type="submit" disabled={saving}>
+        {saving ? "Запазвам…" : "Запази"}
+      </button>
+      <button className="link" type="button" onClick={() => setEditing(false)}>
+        Отказ
+      </button>
+      {err && <p className="error">{err}</p>}
+    </form>
+  );
+}
+
 const gradeLabel = (g) => (!g ? "" : /клас/.test(g) ? g : `${g} клас`);
 const initials = (name = "") =>
   name
@@ -545,7 +616,7 @@ export default function Home() {
                 <input
                   ref={inputRef}
                   type="file"
-                  accept="application/pdf,image/*"
+                  accept="application/pdf,image/*,.heic,.heif"
                   hidden
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -561,7 +632,7 @@ export default function Home() {
                     <button className="link" onClick={() => inputRef.current?.click()}>
                       качете снимка или PDF
                     </button>{" "}
-                    (до 3 MB). Може и да го пуснете върху листа.
+                    – снимките от телефона ги смалявам сам, PDF до 3 MB. Може и да го пуснете върху листа.
                   </span>
                 )}
               </div>
@@ -626,7 +697,14 @@ export default function Home() {
             <div className="review-head">
               <div>
                 {(ctx.grade || ctx.subject) && <p className="context">{[gradeLabel(ctx.grade), ctx.subject].filter(Boolean).join(", ")}</p>}
-                <h1>{analysis.title || "Вашият материал"}</h1>
+                <EditableTitle
+                  title={analysis.title || "Вашият материал"}
+                  assignmentId={assignmentId}
+                  onRenamed={(t) => {
+                    setAnalysis((a) => ({ ...a, title: t }));
+                    setFinal((f) => (f ? { ...f, title: t } : f));
+                  }}
+                />
                 <p className="hint" style={{ marginTop: 8 }}>
                   Червеното е там, където ученик лесно би дал работата на ИИ. Отворете бележка, за да видите какво предлагам.
                 </p>
@@ -667,7 +745,14 @@ export default function Home() {
             <div className="handout-head">
               <div>
                 <p className="context">Препис начисто. Пазя го в „Моите материали“.</p>
-                <h1>{final.title}</h1>
+                <EditableTitle
+                  title={final.title}
+                  assignmentId={assignmentId}
+                  onRenamed={(t) => {
+                    setAnalysis((a) => ({ ...a, title: t }));
+                    setFinal((f) => ({ ...f, title: t }));
+                  }}
+                />
                 <p className="lede">{final.score_reason}</p>
               </div>
               <div className="score-change" aria-label={`Колко лесно е за ИИ: преди ${analysis.ai_score_before}, сега ${final.ai_score_after} от 10`}>
