@@ -10,6 +10,8 @@ import "@fontsource/caveat/cyrillic-500.css";
 import "@fontsource/caveat/cyrillic-700.css";
 import "@fontsource/caveat/latin-500.css";
 import "@fontsource/caveat/latin-700.css";
+// KaTeX: typeset maths (formulas like C_6^4 in maths materials).
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 export const metadata = {

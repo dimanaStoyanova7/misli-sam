@@ -1,5 +1,6 @@
 "use client";
 
+import { plainMath } from "@/lib/math";
 import { useEffect, useState } from "react";
 
 const dateFmt = new Intl.DateTimeFormat("bg-BG", { day: "numeric", month: "long", year: "numeric" });
@@ -90,7 +91,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
             {shown.map((it) => (
               <li key={it.id} className="history-item">
                 <button className="history-open" onClick={() => onOpen(it.id)}>
-                  <span className="history-title">{it.title}</span>
+                  <span className="history-title">{plainMath(it.title)}</span>
                   <span className="history-meta">
                     {[it.context?.grade, it.context?.subject, dateFmt.format(new Date(it.updated_at))].filter(Boolean).join(", ")}
                   </span>

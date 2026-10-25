@@ -1,5 +1,7 @@
 "use client";
 
+import MathText from "./MathText";
+import { plainMath } from "@/lib/math";
 import Logo from "./Logo";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
@@ -31,11 +33,11 @@ function RichText({ text }) {
     <div className="rich">
       {parseBlocks(text).map((b, i) =>
         b.type === "heading" ? (
-          <h3 key={i}>{b.text}</h3>
+          <h3 key={i}><MathText text={b.text} /></h3>
         ) : b.type === "list" ? (
-          <ul key={i}>{b.items.map((it, j) => <li key={j}>{it}</li>)}</ul>
+          <ul key={i}>{b.items.map((it, j) => <li key={j}><MathText text={it} /></li>)}</ul>
         ) : (
-          <p key={i}>{b.text}</p>
+          <p key={i}><MathText text={b.text} /></p>
         )
       )}
     </div>
@@ -490,10 +492,10 @@ export default function Home() {
   // Plain-text copy of the new version, ready to paste into a document or Shkolo.
   async function copyHandout() {
     const body = parseBlocks(final.assignment)
-      .map((b) => (b.type === "list" ? b.items.map((x) => `– ${x}`).join("\n") : b.text))
+      .map((b) => (b.type === "list" ? b.items.map((x) => `– ${plainMath(x)}`).join("\n") : plainMath(b.text)))
       .join("\n\n");
     try {
-      await navigator.clipboard.writeText(`${final.title}\n\n${body}`);
+      await navigator.clipboard.writeText(`${plainMath(final.title)}\n\n${body}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -776,7 +778,7 @@ export default function Home() {
                     setFinal((f) => ({ ...f, title: t }));
                   }}
                 />
-                <p className="lede">{final.score_reason}</p>
+                <p className="lede"><MathText text={final.score_reason} /></p>
               </div>
               <div className="score-change" aria-label={`Колко лесно е за ИИ: преди ${analysis.ai_score_before}, сега ${final.ai_score_after} от 10`}>
                 <span className="was">{analysis.ai_score_before}</span>
@@ -800,14 +802,14 @@ export default function Home() {
                 <div className="paper handout">
                   {analysis.parts.map((p) => (
                     <div key={p.id} className="old-part">
-                      <p>{p.text}</p>
+                      <p><MathText text={p.text} /></p>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="version after">
                 <div className="paper handout print-area">
-                  <h2 className="doc-title">{final.title}</h2>
+                  <h2 className="doc-title"><MathText text={final.title} /></h2>
                   <RichText text={final.assignment} />
                 </div>
               </div>

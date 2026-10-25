@@ -438,3 +438,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   .print-area, .print-area * { visibility: visible; }
   .print-area { position: absolute; inset: 0 0 auto 0; box-shadow: none !important; padding: 0; background: #fff; max-width: none; }
 }
+
+/* ---------- Maths (KaTeX) ---------- */
+/* Formulas sit in the line like the serif text around them, never split across lines. */
+.math { white-space: nowrap; }
+.math .katex { font-size: 1.06em; line-height: 1; }
+/* In handwriting (red-pen notes, the verdict) the formula is smaller next to tall Caveat letters. */
+.note-mark .math .katex, .verdict .math .katex { font-size: 0.82em; }
+.math .katex-error { color: inherit !important; font-family: inherit; }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import MathText from "./MathText";
+import { mathRanges, plainMath } from "@/lib/math";
 
 // The teacher's material as a marked-up sheet of paper.
 // - Weak passages are underlined in red (or bracketed in the margin when the whole part is weak).
@@ -35,20 +37,20 @@ function Note({ it, on, open, inline, onOpen, onToggle, onHover, otherTargets, o
       <button className="note-face" aria-expanded={open} onClick={onOpen}>
         <span className={`circ ${on ? "" : "off"}`}>{it.num}</span>
         <span className="note-mark">
-          <span>{s.margin_note || s.title}</span>
-          {!open && <small>{s.title}</small>}
+          <span><MathText text={s.margin_note || s.title} /></span>
+          {!open && <small><MathText text={s.title} /></small>}
         </span>
       </button>
 
       {open && (
         <div className="note-slip">
-          <p className="slip-title">{s.title}</p>
+          <p className="slip-title"><MathText text={s.title} /></p>
           <span className="slip-k">Защо е слабо</span>
-          <p>{s.problem}</p>
+          <p><MathText text={s.problem} /></p>
           {s.rewrite && (
             <>
               <span className="slip-k">Предлагам така</span>
-              <p className="slip-rewrite">{s.rewrite}</p>
+              <p className="slip-rewrite"><MathText text={s.rewrite} /></p>
             </>
           )}
           <div className="slip-meta">
@@ -78,13 +80,21 @@ function Note({ it, on, open, inline, onOpen, onToggle, onHover, otherTargets, o
 }
 
 // Splits a passage into plain text and underlined weak spots.
+// An underline that starts or ends inside a formula is widened to the whole formula.
 function segmentsFor(text, items) {
+  const ranges = mathRanges(text);
   const found = [];
   for (const it of items) {
     const q = it.s.quote;
     if (!q) continue;
-    const at = text.indexOf(q);
-    if (at >= 0) found.push({ at, end: at + q.length, it });
+    let at = text.indexOf(q);
+    if (at < 0) continue;
+    let end = at + q.length;
+    for (const [a, b] of ranges) {
+      if (a < at && at < b) at = a;
+      if (a < end && end < b) end = b;
+    }
+    found.push({ at, end, it });
   }
   found.sort((a, b) => a.at - b.at);
   const out = [];
@@ -253,7 +263,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
       <div className="sheet-grid">
         <div className="sheet-text" ref={textRef}>
           <div className="verdict" ref={verdictRef}>
-            <p>{verdict}</p>
+            <p><MathText text={verdict} /></p>
             <div className={`grade ${scoreTone(score) === "low" ? "low" : ""}`} aria-label={`Колко лесно е за ИИ: ${score} от 10`}>
               <span>
                 <b>{score}</b>
@@ -286,7 +296,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
                 {linked.length > 0 && (
                   <span className="margin-nums">
                     {linked.map((it) => (
-                      <button key={it.i} className={`circ ${selected[it.i] ? "" : "off"}`} title={it.s.title} onClick={() => openNote(it.i, true)}>
+                      <button key={it.i} className={`circ ${selected[it.i] ? "" : "off"}`} title={plainMath(it.s.title)} onClick={() => openNote(it.i, true)}>
                         {it.num}
                       </button>
                     ))}
@@ -295,7 +305,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
                 <span className="passage-body">
                   {segs.map((seg, k) =>
                     typeof seg === "string" ? (
-                      <span key={k}>{seg}</span>
+                      <span key={k}><MathText text={seg} /></span>
                     ) : (
                       <mark
                         key={k}
@@ -303,7 +313,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
                         className={`flag ${selected[seg.it.i] ? "" : "off"} ${activeId === seg.it.i ? "lit" : ""}`}
                         role="button"
                         tabIndex={0}
-                        title={seg.it.s.margin_note || seg.it.s.title}
+                        title={plainMath(seg.it.s.margin_note || seg.it.s.title)}
                         onClick={() => openNote(seg.it.i, true)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -314,7 +324,7 @@ export default function Board({ parts, suggestions, selected, onToggle, verdict,
                         onMouseEnter={() => setHoverId(seg.it.i)}
                         onMouseLeave={() => setHoverId(null)}
                       >
-                        {p.text.slice(seg.at, seg.end)}
+                        <MathText text={p.text.slice(seg.at, seg.end)} />
                       </mark>
                     )
                   )}
@@ -360,7 +370,7 @@ export function Tips({ tips = [] }) {
       <h3>Преди да го дадете на учениците</h3>
       {tips.map((t, i) => (
         <p key={i}>
-          <b>{t.title.replace(/[.!\s]+$/, "")}.</b> {t.why}
+          <b><MathText text={t.title.replace(/[.!\s]+$/, "")} />.</b> <MathText text={t.why} />
         </p>
       ))}
     </aside>
