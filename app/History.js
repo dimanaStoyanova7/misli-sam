@@ -2,6 +2,8 @@
 
 import { plainMath } from "@/lib/math";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { materialUrl } from "@/lib/routes";
 
 const dateFmt = new Intl.DateTimeFormat("bg-BG", { day: "numeric", month: "long", year: "numeric" });
 
@@ -27,7 +29,7 @@ function ScorePill({ before, after }) {
   );
 }
 
-export default function History({ onOpen, onNew, onLoggedOut }) {
+export default function History({ onNew, onLoggedOut }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
@@ -69,7 +71,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
           <h1>Моите материали</h1>
           <p className="lead">Тук пазя всичко, което сме прегледали. Отворете материал, за да вземете новата версия или да изберете други бележки.</p>
         </div>
-        <button className="primary" onClick={onNew}>Нов материал</button>
+        <Link className="primary" href="/" onClick={onNew}>Нов материал</Link>
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -80,7 +82,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
         <div className="card empty">
           <h2>Още нищо не сме преглеждали</h2>
           <p className="hint">Покажете ми първия си материал и той ще се появи тук.</p>
-          <button className="primary" onClick={onNew}>Покажи ми материал</button>
+          <Link className="primary" href="/" onClick={onNew}>Покажи ми материал</Link>
         </div>
       ) : items ? (
         <>
@@ -90,7 +92,8 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
           <ul className="history-list">
             {shown.map((it) => (
               <li key={it.id} className="history-item">
-                <button className="history-open" onClick={() => onOpen(it.id)}>
+                {/* a saved clean version opens directly; otherwise the notes */}
+                <Link className="history-open" href={materialUrl(it.id, it.has_final)}>
                   <span className="history-title">{plainMath(it.title)}</span>
                   <span className="history-meta">
                     {[it.context?.grade, it.context?.subject, dateFmt.format(new Date(it.updated_at))].filter(Boolean).join(", ")}
@@ -99,7 +102,7 @@ export default function History({ onOpen, onNew, onLoggedOut }) {
                     <ScorePill before={it.score_before} after={it.has_final ? it.score_after : null} />
                     {!it.has_final && <span className="draft">само бележки</span>}
                   </span>
-                </button>
+                </Link>
                 <button className="ghost small" onClick={() => remove(it)} aria-label={`Изтрий ${it.title}`}>
                   Изтрий
                 </button>

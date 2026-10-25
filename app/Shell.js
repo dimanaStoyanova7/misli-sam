@@ -4,6 +4,9 @@ import MathText from "./MathText";
 import { plainMath } from "@/lib/math";
 import Logo from "./Logo";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { materialUrl, parseRoute, plainClick } from "@/lib/routes";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board, { Tips } from "./Board";
 import History from "./History";
@@ -310,8 +313,12 @@ function LoginCard({ initialError, onLogin }) {
 
 // ---------- Page ----------
 
-export default function Home() {
-  const [step, setStep] = useState("input");
+export default function Shell() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const route = parseRoute(pathname);
+  const view = route.view === "history" ? "history" : route.view === "settings" ? "settings" : route.view === "missing" ? "missing" : "work";
+  const step = route.view === "new" ? "input" : route.clean ? "final" : "results";
   const [mode, setMode] = useState("text");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -325,8 +332,10 @@ export default function Home() {
   const [final, setFinal] = useState(null);
   const [compareTab, setCompareTab] = useState("after"); // which version the final page shows
   const [copied, setCopied] = useState(false);
-  const [view, setView] = useState("work"); // "work" | "history"
   const [assignmentId, setAssignmentId] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const attempted = useRef(null); // the material id we last tried to load from its address
+  const visits = useRef(0); // screens seen in this tab, so "Отказ" can go back only within the app
 
   const settings = me?.loggedIn ? me.settings : null;
   const subjects = subjectChoices(settings);
@@ -370,11 +379,32 @@ export default function Home() {
     await fetch("/api/logout", { method: "POST" }).catch(() => {});
     setMe({ loggedIn: false });
     restart();
+    router.push("/");
   }
 
   useEffect(() => {
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [step]);
+    visits.current += 1;
+    topRef.current?.scrollIntoView({ block: "start" });
+  }, [pathname]);
+
+  // Opening an address like /materiali/12 loads that material.
+  const ready = Boolean(me?.loggedIn && me.settings);
+  useEffect(() => {
+    if (!ready || route.view !== "material") return;
+    if (route.id !== assignmentId) {
+      if (attempted.current !== route.id) openSaved(route.id);
+      return;
+    }
+    // No clean version yet: show the notes instead.
+    if (route.clean && analysis && !final && !busy) router.replace(materialUrl(route.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, route.view, route.id, route.clean, assignmentId, Boolean(final), busy]);
+
+  useEffect(() => {
+    if (route.view === "missing") document.title = "Няма такава страница – Мисли сам";
+    if (route.view !== "material") attempted.current = null;
+    else if (analysis && assignmentId === route.id) document.title = `${plainMath(analysis.title || "Материал")}${route.clean ? " – начисто" : ""} – Мисли сам`;
+  });
 
   function pickFile(f) {
     if (!f) return;
@@ -430,11 +460,12 @@ export default function Home() {
         localStorage.setItem(LAST_KEY, JSON.stringify({ subject: ctx.subject, grade: ctx.grade }));
       } catch {}
       const data = await post("/api/analyze", { ...payload, context });
+      attempted.current = data.assignmentId;
       setAnalysis(data);
       setAssignmentId(data.assignmentId);
       setSelected(data.suggestions.map(() => true));
       setFinal(null);
-      setStep("results");
+      router.push(materialUrl(data.assignmentId));
       refreshUsage();
     } catch (e) {
       setError(e.message);
@@ -455,7 +486,7 @@ export default function Home() {
       const data = await post("/api/finalize", { assignmentId, selected });
       setFinal(data);
       setCompareTab("after");
-      setStep("final");
+      router.push(materialUrl(assignmentId, true));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -464,7 +495,9 @@ export default function Home() {
   }
 
   async function openSaved(id) {
+    attempted.current = id;
     setError("");
+    setLoadError("");
     setBusy("open");
     try {
       const res = await fetch(`/api/assignments/${id}`);
@@ -473,17 +506,15 @@ export default function Home() {
         setMe({ loggedIn: false, error: data.error });
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Материалът не можа да бъде отворен.");
+      if (!res.ok) throw new Error(res.status === 404 ? "Не намерих този материал. Може да е изтрит." : data.error || "Материалът не можа да бъде отворен.");
       setAnalysis(data.analysis);
       setAssignmentId(data.id);
       setCtx({ grade: "", subject: "", ...(data.context || {}) });
       setSelected(data.analysis.suggestions.map((_, i) => (data.selected ? Boolean(data.selected[i]) : true)));
       setFinal(data.final);
       setCompareTab("after");
-      setView("work");
-      setStep(data.final ? "final" : "results");
     } catch (e) {
-      setError(e.message);
+      setLoadError(e.message);
     } finally {
       setBusy(null);
     }
@@ -503,16 +534,15 @@ export default function Home() {
     }
   }
 
-  function newAssignment() {
-    restart();
-    setView("work");
-  }
+  // Starting a new material clears the one in progress (on a plain click on a "Нов материал" link).
+  const startNew = plainClick(() => restart());
 
   function restart() {
+    attempted.current = null;
+    setLoadError("");
     setAssignmentId(null);
     setMode("text");
     applyDefaults();
-    setStep("input");
     setAnalysis(null);
     setFinal(null);
     setFile(null);
@@ -526,15 +556,15 @@ export default function Home() {
   return (
     <div className={`shell ${view === "work" && (step === "results" || step === "final") && me?.loggedIn && !busy ? "wide" : ""}`} ref={topRef}>
       <header className="top">
-        <button className="brand" onClick={() => me?.loggedIn && me.settings && newAssignment()} aria-label="Мисли сам – начало">
+        <Link href="/" className="brand" onClick={startNew} aria-label="Мисли сам – начало">
           <Logo />
           <span className="brand-name">Мисли сам</span>
-        </button>
+        </Link>
         {me?.loggedIn && me.settings && (
-          <nav className="nav">
-            <button className={view === "work" ? "on" : ""} onClick={newAssignment}>Нов материал</button>
-            <button className={view === "history" ? "on" : ""} onClick={() => { setError(""); setView("history"); }}>Моите материали</button>
-            <button className={view === "settings" ? "on" : ""} onClick={() => setView("settings")}>Настройки</button>
+          <nav className="nav" aria-label="Основна навигация">
+            <Link href="/" className={view === "work" ? "on" : ""} aria-current={route.view === "new" ? "page" : undefined} onClick={startNew}>Нов материал</Link>
+            <Link href="/materiali" className={view === "history" ? "on" : ""} aria-current={view === "history" ? "page" : undefined}>Моите материали</Link>
+            <Link href="/nastroyki" className={view === "settings" ? "on" : ""} aria-current={view === "settings" ? "page" : undefined}>Настройки</Link>
           </nav>
         )}
         {me?.loggedIn && (
@@ -562,7 +592,7 @@ export default function Home() {
             initialError={me.error}
             onLogin={(d) => {
               setMe({ loggedIn: true, ...d });
-              newAssignment();
+              restart(); // stay on the address they opened, e.g. a saved material
               refreshUsage();
             }}
           />
@@ -573,14 +603,14 @@ export default function Home() {
             initial={me.settings}
             onSaved={(st) => {
               setMe({ ...me, settings: st });
-              setView("work");
+              router.push("/");
             }}
-            onCancel={() => setView("work")}
+            onCancel={() => (visits.current > 1 ? router.back() : router.push("/"))}
           />
         ) : busy ? (
           <Loading kind={busy} />
         ) : view === "history" ? (
-          <History onOpen={openSaved} onNew={newAssignment} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
+          <History onNew={startNew} onLoggedOut={(err) => setMe({ loggedIn: false, error: err })} />
         ) : step === "input" ? (
           <section className="handover">
             <div
@@ -691,7 +721,7 @@ export default function Home() {
                 {subjects.length === 1 && (
                   <p className="ctx-note">
                     {subjects[0]}.{" "}
-                    <button className="link" onClick={() => setView("settings")}>Промени</button>
+                    <Link className="link" href="/nastroyki">Промени</Link>
                   </p>
                 )}
                 {grades.length > 0 && (
@@ -717,7 +747,21 @@ export default function Home() {
               </div>
             </aside>
           </section>
-        ) : step === "results" && analysis ? (
+        ) : route.view === "missing" ? (
+          <section className="card empty">
+            <h2>Тази страница я няма.</h2>
+            <p className="hint">
+              <Link className="link" href="/">Към нов материал</Link>
+            </p>
+          </section>
+        ) : route.view === "material" && loadError ? (
+          <section className="card empty">
+            <h2>{loadError}</h2>
+            <p className="hint">
+              <Link className="link" href="/materiali">Към моите материали</Link>
+            </p>
+          </section>
+        ) : step === "results" && analysis && assignmentId === route.id ? (
           <section>
             <div className="review-head">
               <div>
@@ -758,14 +802,14 @@ export default function Home() {
                 <span className="dock-text">
                   В новата версия: <b>{chosenCount} от {analysis.suggestions.length}</b> бележки
                 </span>
-                <button className="quiet-btn" onClick={restart}>Нов материал</button>
+                <Link className="quiet-btn" href="/" onClick={startNew}>Нов материал</Link>
                 <button className="primary" onClick={finalize} disabled={!chosenCount}>
                   Препиши го начисто
                 </button>
               </div>
             </div>
           </section>
-        ) : step === "final" && final ? (
+        ) : step === "final" && final && assignmentId === route.id ? (
           <section>
             <div className="handout-head">
               <div>
@@ -823,7 +867,7 @@ export default function Home() {
             {error && <p className="error" role="alert">{error}</p>}
 
             <div className="actions final-actions">
-              <button className="ghost" onClick={() => setStep("results")}>Обратно към бележките</button>
+              <Link className="ghost" href={materialUrl(assignmentId)}>Обратно към бележките</Link>
               <span className="spacer" />
               {copied && <span className="copied">копирано</span>}
               <button className="ghost" onClick={copyHandout}>Копирай текста</button>
@@ -834,9 +878,11 @@ export default function Home() {
             </div>
             <p className="final-foot">
               За PDF изберете „Запази като PDF“ в прозореца за печат.{" "}
-              <button className="link" onClick={restart}>Прегледай друг материал</button>
+              <Link className="link" href="/" onClick={startNew}>Прегледай друг материал</Link>
             </p>
           </section>
+        ) : route.view === "material" ? (
+          <Loading kind="open" />
         ) : null}
       </main>
 
