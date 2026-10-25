@@ -1,7 +1,7 @@
 "use client";
 
 import Logo from "./Logo";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board, { Tips } from "./Board";
 import History from "./History";
@@ -50,20 +50,45 @@ function scoreTone(n) {
 
 const RISK_WORD = { high: "висок риск", mid: "среден риск", low: "нисък риск" };
 
-// The material's one title, with an inline "Преименувай".
+// The material's one title, edited in place like a Google Docs title:
+// click it and type; Enter or clicking away saves, Esc puts the old title back.
 function EditableTitle({ title, assignmentId, onRenamed }) {
-  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(title);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
+  const [status, setStatus] = useState(""); // "", "saving", "saved", or an error message
+  const ref = useRef(null);
+  const mirror = useRef(null);
+  const cancelled = useRef(false);
 
-  async function save(e) {
-    e.preventDefault();
+  useEffect(() => setValue(title), [title]);
+
+  // Size the field to the title (like a document title): as wide as the text,
+  // wrapping onto more lines only when it doesn't fit.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const m = mirror.current;
+    if (!el || !m) return;
+    const max = el.parentElement.parentElement.clientWidth;
+    el.style.width = `${Math.min(max, m.offsetWidth + 22)}px`;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  async function commit() {
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
     const next = value.trim().replace(/\s+/g, " ");
-    if (!next) return setErr("Заглавието не може да е празно.");
-    if (next === title) return setEditing(false);
-    setSaving(true);
-    setErr("");
+    if (!next) {
+      setValue(title);
+      setStatus("Заглавието не може да е празно – върнах предишното.");
+      return;
+    }
+    if (next === title) {
+      setValue(title);
+      return;
+    }
+    setStatus("saving");
     try {
       const res = await fetch(`/api/assignments/${assignmentId}`, {
         method: "PATCH",
@@ -73,51 +98,49 @@ function EditableTitle({ title, assignmentId, onRenamed }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Не успях да запазя заглавието.");
       onRenamed(data.title);
-      setEditing(false);
-    } catch (e2) {
-      setErr(e2.message);
-    } finally {
-      setSaving(false);
+      setStatus("saved");
+      setTimeout(() => setStatus((s) => (s === "saved" ? "" : s)), 1800);
+    } catch (e) {
+      setValue(title);
+      setStatus(e.message);
     }
   }
 
-  if (!editing) {
-    return (
-      <div className="title-row">
-        <h1>{title}</h1>
-        {assignmentId && (
-          <button
-            className="link rename"
-            onClick={() => {
-              setValue(title);
-              setErr("");
-              setEditing(true);
-            }}
-          >
-            Преименувай
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (!assignmentId) return <h1>{title}</h1>;
   return (
-    <form className="title-edit" onSubmit={save}>
-      <input
+    <div className="title-field">
+      <span ref={mirror} className="title-input title-mirror" aria-hidden="true">
+        {value || " "}
+      </span>
+      <textarea
+        ref={ref}
+        className="title-input"
+        rows={1}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
         maxLength={160}
-        aria-label="Заглавие на материала"
-        autoFocus
+        spellCheck={false}
+        aria-label="Заглавие на материала (натиснете, за да го промените)"
+        title="Натиснете, за да промените заглавието"
+        onChange={(e) => {
+          setValue(e.target.value.replace(/\n/g, " "));
+          if (status && status !== "saving") setStatus("");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            cancelled.current = true;
+            setValue(title);
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={commit}
       />
-      <button className="primary small" type="submit" disabled={saving}>
-        {saving ? "Запазвам…" : "Запази"}
-      </button>
-      <button className="link" type="button" onClick={() => setEditing(false)}>
-        Отказ
-      </button>
-      {err && <p className="error">{err}</p>}
-    </form>
+      {status === "saving" && <span className="title-status">запазвам…</span>}
+      {status === "saved" && <span className="title-status ok">запазено</span>}
+      {status && status !== "saving" && status !== "saved" && <p className="title-status err">{status}</p>}
+    </div>
   );
 }
 
