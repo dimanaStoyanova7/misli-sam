@@ -447,3 +447,25 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* In handwriting (red-pen notes, the verdict) the formula is smaller next to tall Caveat letters. */
 .note-mark .math .katex, .verdict .math .katex { font-size: 0.82em; }
 .math .katex-error { color: inherit !important; font-family: inherit; }
+
+/* ---------- "Какво обикновено предлагам" (start page cheat sheet) ---------- */
+/* An index card on the desk: a red rule under the heading, faint blue ruling between lines. */
+.guide { margin-top: 26px; background: var(--paper); box-shadow: var(--paper-shadow); padding: 16px 18px 14px; border-radius: 2px; }
+.guide h3 { font-size: 16px; padding-bottom: 8px; border-bottom: 1.5px solid var(--margin-line); }
+.guide-lede { font-size: 13.5px; color: var(--ink-3); margin: 8px 0 4px; line-height: 1.4; }
+.guide ul { list-style: none; margin: 0; padding: 0; }
+.guide li { border-bottom: 1px solid var(--rule-line); }
+.guide li:last-child { border-bottom: 0; }
+.guide li > button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 9px 0 8px; }
+.guide-pattern { display: block; font-size: 14.5px; font-weight: 700; line-height: 1.3; }
+.guide li > button:hover .guide-pattern { text-decoration: underline; text-underline-offset: 3px; }
+.guide-fix { display: block; font-family: var(--hand); font-size: 18px; line-height: 1.15; color: var(--red); margin-top: 3px; }
+.guide-fix::before { content: "→ "; }
+.guide-example { padding: 0 0 12px; font-size: 14px; line-height: 1.45; }
+.guide-signs { color: var(--ink-3); font-size: 13px; margin-bottom: 8px; }
+.guide-before { color: var(--ink-2); text-decoration: underline wavy var(--red-soft); text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.guide-after { color: var(--blue); margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--blue); }
+.guide-foot { font-size: 13px; color: var(--ink-3); margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--rule-line); line-height: 1.4; }
+@media (max-width: 960px) {
+  .guide { margin-top: 18px; }
+}

@@ -10,6 +10,7 @@ import { materialUrl, parseRoute, plainClick } from "@/lib/routes";
 import { exportDocx, parseBlocks, prepareFile } from "@/lib/client";
 import Board, { Tips } from "./Board";
 import History from "./History";
+import Guide from "./Guide";
 import Setup from "./Setup";
 import { gradeChoices, subjectChoices } from "@/lib/subjects";
 
@@ -745,6 +746,7 @@ export default function Shell() {
                   </div>
                 )}
               </div>
+              <Guide subject={ctx.subject} />
             </aside>
           </section>
         ) : route.view === "missing" ? (
