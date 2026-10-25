@@ -2,20 +2,25 @@
 
 import { useState } from "react";
 import MathText from "./MathText";
-import { patternsFor } from "@/lib/patterns";
+import { bestExample, orderedPatterns } from "@/lib/patterns";
 
-// A small cheat sheet beside the upload form: type of question → what I usually suggest.
-// Each line opens to show a before/after example.
-export default function Guide({ subject }) {
+const short = (s) => s.replace(" и литература", "").replace(" и цивилизации", "").replace(" и икономика", "").replace(" и астрономия", "").replace(" и опазване на околната среда", "");
+
+// A small cheat sheet beside the upload form: type of question → the usual fix.
+// Each line opens to a simple before/after example, matched to the chosen subject and grade.
+export default function Guide({ subject, grade }) {
   const [open, setOpen] = useState(null);
-  const items = patternsFor(subject);
+  const [shift, setShift] = useState({}); // pattern id → how many times "Друг пример" was pressed
+  const items = orderedPatterns(subject);
   return (
     <section className="guide" aria-labelledby="guide-title">
-      <h3 id="guide-title">Какво обикновено предлагам</h3>
-      <p className="guide-lede">Според вида на въпроса. Отворете ред, за да видите пример.</p>
+      <h3 id="guide-title">Чести слаби места</h3>
+      <p className="guide-lede">Видът на въпроса подсказва какво да се промени. Отворете ред за пример.</p>
       <ul>
         {items.map((p) => {
           const on = open === p.id;
+          const n = p.examples.length;
+          const ex = p.examples[(bestExample(p, subject, grade) + (shift[p.id] || 0)) % n];
           return (
             <li key={p.id} className={on ? "open" : ""}>
               <button type="button" aria-expanded={on} onClick={() => setOpen(on ? null : p.id)}>
@@ -25,15 +30,23 @@ export default function Guide({ subject }) {
               {on && (
                 <div className="guide-example">
                   <p className="guide-signs">Познава се по: {p.signs}</p>
-                  <p className="guide-before"><MathText text={p.before} /></p>
-                  <p className="guide-after"><MathText text={p.after} /></p>
+                  <p className="guide-where">
+                    {short(ex.subject)}, {ex.grade} клас
+                  </p>
+                  <p className="guide-before"><MathText text={ex.before} /></p>
+                  <p className="guide-after"><MathText text={ex.after} /></p>
+                  {n > 1 && (
+                    <button type="button" className="link guide-more" onClick={() => setShift({ ...shift, [p.id]: (shift[p.id] || 0) + 1 })}>
+                      Друг пример
+                    </button>
+                  )}
                 </div>
               )}
             </li>
           );
         })}
       </ul>
-      <p className="guide-foot">Съвети като „в час, на ръка“ ги пиша отделно, на жълто листче. Те не влизат в текста на материала.</p>
+      <p className="guide-foot">Съвети като „в час, на ръка“ се показват отделно, на жълто листче, и не влизат в текста на материала.</p>
     </section>
   );
 }

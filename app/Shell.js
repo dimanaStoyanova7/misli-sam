@@ -746,7 +746,7 @@ export default function Shell() {
                   </div>
                 )}
               </div>
-              <Guide subject={ctx.subject} />
+              <Guide subject={ctx.subject} grade={ctx.grade} />
             </aside>
           </section>
         ) : route.view === "missing" ? (
